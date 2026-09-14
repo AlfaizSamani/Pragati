@@ -12,15 +12,15 @@ import { Badge } from '@/components/ui/Badge';
 import { RiskIndicator } from '@/components/ui/RiskIndicator';
 
 // Jitter function to avoid marker overlap
-// Uses a simple deterministic hash based on projectId
+// Uses a controlled deterministic offset to stay strictly within state borders
 function getJitter(seed: string): [number, number] {
   let hash = 0;
   for (let i = 0; i < seed.length; i++) {
     hash = Math.imul(31, hash) + seed.charCodeAt(i) | 0;
   }
-  // Generate a pseudo-random value between -0.3 and 0.3
-  const jitterLat = ((hash % 1000) / 1000 - 0.5) * 0.6;
-  const jitterLng = (((hash >> 5) % 1000) / 1000 - 0.5) * 0.6;
+  // Tightly bounded offset (max ±0.1° ~ 10km) to ensure points stay strictly within India
+  const jitterLat = ((hash % 1000) / 1000 - 0.5) * 0.22;
+  const jitterLng = (((hash >> 5) % 1000) / 1000 - 0.5) * 0.22;
   return [jitterLat, jitterLng];
 }
 
