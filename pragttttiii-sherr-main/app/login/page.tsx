@@ -14,8 +14,10 @@ function LoginForm() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
 
   useEffect(() => {
@@ -40,10 +42,11 @@ function LoginForm() {
     checkExistingSession();
   }, []);
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setErrorMessage(null);
+    setSuccessMessage(null);
 
     try {
       if (!isSupabaseConfigured) {
@@ -54,19 +57,41 @@ function LoginForm() {
         return;
       }
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      if (isSignUp) {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              role: 'officer',
+              organization: 'MoSPI / IPMD',
+            },
+          },
+        });
 
-      if (error) {
-        throw error;
-      }
+        if (error) throw error;
 
-      if (data.session) {
-        document.cookie = `paimana_officer_session=${data.session.access_token}; path=/; max-age=${data.session.expires_in}; SameSite=Lax`;
-        setCurrentUser(data.session.user.email || 'Authorized Officer');
-        router.push(nextPath);
+        if (data.session) {
+          document.cookie = `paimana_officer_session=${data.session.access_token}; path=/; max-age=${data.session.expires_in}; SameSite=Lax`;
+          setCurrentUser(data.session.user.email || 'Authorized Officer');
+          router.push(nextPath);
+        } else {
+          setSuccessMessage('Officer account created successfully! Please sign in with your credentials.');
+          setIsSignUp(false);
+        }
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) throw error;
+
+        if (data.session) {
+          document.cookie = `paimana_officer_session=${data.session.access_token}; path=/; max-age=${data.session.expires_in}; SameSite=Lax`;
+          setCurrentUser(data.session.user.email || 'Authorized Officer');
+          router.push(nextPath);
+        }
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'Authentication failed. Please verify your credentials.');
@@ -144,7 +169,32 @@ function LoginForm() {
             </div>
           </div>
         ) : (
-          <form onSubmit={handleLogin} className="mt-6 space-y-4">
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            {/* Mode Switch Tabs */}
+            <div className="grid grid-cols-2 rounded-xl bg-slate-100 p-1 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => { setIsSignUp(false); setErrorMessage(null); setSuccessMessage(null); }}
+                className={`rounded-lg py-2 transition ${!isSignUp ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'}`}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIsSignUp(true); setErrorMessage(null); setSuccessMessage(null); }}
+                className={`rounded-lg py-2 transition ${isSignUp ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'}`}
+              >
+                Create Account
+              </button>
+            </div>
+
+            {successMessage && (
+              <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                <span>{successMessage}</span>
+              </div>
+            )}
+
             {errorMessage && (
               <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
@@ -187,11 +237,22 @@ function LoginForm() {
               disabled={loading}
               className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-sky-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-sky-800 disabled:opacity-50"
             >
-              {loading ? 'Authenticating...' : 'Sign In as Officer'}
+              {loading
+                ? (isSignUp ? 'Creating Account...' : 'Authenticating...')
+                : (isSignUp ? 'Register Officer Account' : 'Sign In as Officer')}
             </button>
 
-            <div className="pt-2 text-center">
-              <a href="/" className="text-xs font-semibold text-slate-500 hover:text-slate-700">
+            <div className="pt-2 text-center space-y-2">
+              <button
+                type="button"
+                onClick={() => { setIsSignUp(!isSignUp); setErrorMessage(null); setSuccessMessage(null); }}
+                className="text-xs font-semibold text-sky-700 hover:text-sky-900 block w-full"
+              >
+                {isSignUp
+                  ? 'Already have an officer account? Sign in'
+                  : "Don't have an account? Register as an officer"}
+              </button>
+              <a href="/" className="text-xs font-semibold text-slate-500 hover:text-slate-700 block">
                 ← Return to Public PRAGATI Dashboard
               </a>
             </div>

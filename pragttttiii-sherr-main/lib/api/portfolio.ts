@@ -5,7 +5,7 @@ import { mockRiskAssessments } from '@/data/mock/projects';
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://pragati-wuh7.onrender.com').replace(/\/+$/, '');
 
-async function fetchWithTimeout(url: string, timeoutMs = 2500): Promise<Response> {
+async function fetchWithTimeout(url: string, timeoutMs = 8000): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {

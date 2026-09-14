@@ -5,7 +5,7 @@ import { mockSignals, mockEvidence } from '@/data/mock/signals-evidence';
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://pragati-wuh7.onrender.com').replace(/\/+$/, '');
 
-async function apiGet<T>(path: string, timeoutMs = 2500): Promise<T> {
+async function apiGet<T>(path: string, timeoutMs = 8000): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {

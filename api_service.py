@@ -13,6 +13,7 @@ Docs: http://localhost:8000/docs (FastAPI auto-generates this)
 """
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel
 import pandas as pd
 import tempfile, os
@@ -58,6 +59,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
 def _extract_bearer_token(request: Request) -> Optional[str]:
@@ -148,6 +150,16 @@ def _load_master() -> dict:
         return json.load(handle)
 
 
+def _tier_from_score(score: float, original_tier: str = "") -> str:
+    if score > 75:
+        return "critical"
+    if score > 55:
+        return "high"
+    if score > 30:
+        return "medium"
+    return "low"
+
+
 def _project_record(row: pd.Series, month: str) -> dict:
     def number(name: str, default: float = 0) -> float:
         value = pd.to_numeric(row.get(name, default), errors="coerce")
@@ -155,6 +167,8 @@ def _project_record(row: pd.Series, month: str) -> dict:
 
     driver = str(row.get("dominant_driver", "Schedule-driven")).lower()
     dominant_risk = "cost_escalation" if "cost" in driver else "progress_stall" if "stall" in driver or "progress" in driver else "schedule_delay"
+    score = round(number("risk_score"), 1)
+    tier = _tier_from_score(score, str(row.get("risk_tier", "")))
     return {
         "id": str(row.get("canonical_id", "")),
         "name": str(row.get("project_name", "Unnamed project")),
@@ -162,29 +176,28 @@ def _project_record(row: pd.Series, month: str) -> dict:
         "sector": str(row.get("sector", "Not reported")),
         "state": str(row.get("state", "Not reported")),
         "agency": str(row.get("agency", "Not reported")),
-        "originalCostCrore": number("cost_original_n", number("cost_original")),
-        "revisedCostCrore": number("cost_current_n", number("cost_revised_n", number("cost_revised"))),
-        "expenditureCrore": number("cum_exp_n", number("cumulative_expenditure")),
-        "physicalProgress": number("phys_prog_n", number("physical_progress")),
+        "originalCostCrore": round(number("cost_original_n", number("cost_original")), 1),
+        "revisedCostCrore": round(number("cost_current_n", number("cost_revised_n", number("cost_revised"))), 1),
+        "expenditureCrore": round(number("cum_exp_n", number("cumulative_expenditure")), 1),
+        "physicalProgress": round(number("phys_prog_n", number("physical_progress")), 1),
         "plannedCompletionDate": str(row.get("doc_original_p", row.get("doc_original", ""))),
         "revisedCompletionDate": str(row.get("doc_revised_p", row.get("doc_revised", ""))) or None,
         "status": "ongoing",
         "reportingMonth": month,
-        "riskScore": number("risk_score"),
-        "riskTier": str(row.get("risk_tier", "Low")).lower(),
-        "confidence": number("confidence", 0.0),
-        "costRiskProbability": number("cost_risk_probability", 0.0),
-        "scheduleRiskProbability": number("schedule_risk_probability", 0.0),
-        "progressStallProbability": min(1.0, number("stall_streak_months") / 6.0),
+        "riskScore": score,
+        "riskTier": tier,
+        "confidence": round(number("confidence", 0.85), 2),
+        "costRiskProbability": round(number("cost_risk_probability", 0.0), 2),
+        "scheduleRiskProbability": round(number("schedule_risk_probability", 0.0), 2),
+        "progressStallProbability": round(min(1.0, number("stall_streak_months") / 6.0), 2),
         "dominantRisk": dominant_risk,
-        "confidence": number("confidence", 0.5),
-        "costEscalationPct": number("cost_escalation_pct_to_date"),
-        "scheduleSlipMonths": number("schedule_slip_months_to_date"),
-        "stallStreakMonths": number("stall_streak_months"),
-        "priorityScore": number("priority_score"),
+        "costEscalationPct": round(number("cost_escalation_pct_to_date"), 1),
+        "scheduleSlipMonths": round(number("schedule_slip_months_to_date"), 1),
+        "stallStreakMonths": int(number("stall_streak_months")),
+        "priorityScore": round(number("priority_score"), 1),
         "recommendedReview": str(row.get("recommended_review", "")),
-        "peerProgressPercentile": number("peer_progress_percentile", number("sector_peer_progress_percentile")),
-        "peerRiskPercentile": number("peer_risk_percentile"),
+        "peerProgressPercentile": round(number("peer_progress_percentile", number("sector_peer_progress_percentile")), 1),
+        "peerRiskPercentile": round(number("peer_risk_percentile"), 1),
     }
 
 
@@ -282,7 +295,19 @@ def ingest_monthly_records(request: Request, payload: MonthlyRecordsRequest, mon
 def portfolio_summary(month: str = "2026-06"):
     df = _load_scored(month)
     risk_scores = pd.to_numeric(df.get('risk_score'), errors='coerce').fillna(0)
-    tiers = df['risk_tier'].astype(str).str.lower()
+    
+    critical_count = int((risk_scores > 75).sum())
+    high_count = int(((risk_scores > 55) & (risk_scores <= 75)).sum())
+    medium_count = int(((risk_scores > 30) & (risk_scores <= 55)).sum())
+    low_count = int((risk_scores <= 30).sum())
+
+    tier_counts = {
+        "Critical": critical_count,
+        "High": high_count,
+        "Medium": medium_count,
+        "Low": low_count,
+    }
+    
     progress = pd.to_numeric(df.get('physical_progress'), errors='coerce')
     avg_progress = progress.mean()
     avg_progress = 0.0 if pd.isna(avg_progress) else round(float(avg_progress), 1)
@@ -293,17 +318,17 @@ def portfolio_summary(month: str = "2026-06"):
     return dict(
         month=month,
         total_projects=len(df),
-        tier_counts=df['risk_tier'].value_counts().to_dict(),
-        mean_risk_score=round(risk_scores.mean(), 1),
-        high_risk_count=int(tiers.isin(['high', 'critical']).sum()),
-        critical_risk_count=int((tiers == 'critical').sum()),
+        tier_counts=tier_counts,
+        mean_risk_score=round(float(risk_scores.mean()), 1),
+        high_risk_count=high_count,
+        critical_risk_count=critical_count,
         avg_physical_progress=avg_progress,
         total_cost_current_cr=total_cost,
-        total_original_cost_cr=float(pd.to_numeric(df.get('cost_original_n'), errors='coerce').sum()),
-        total_expenditure_cr=float(pd.to_numeric(df.get('cum_exp_n'), errors='coerce').sum()),
-        total_cost_escalation_cr=float((pd.to_numeric(df.get('cost_current_n'), errors='coerce') - pd.to_numeric(df.get('cost_original_n'), errors='coerce')).clip(lower=0).sum()),
-        sector_breakdown=[{"sector": item.get("sector"), "projectCount": item.get("n", 0), "avgRiskScore": item.get("avg_risk", 0), "highRiskCount": item.get("high", 0), "totalCostCrore": item.get("cost", 0)} for item in _load_master().get("sector_ranking", [])],
-        ministry_breakdown=[{"ministry": item.get("ministry"), "projectCount": item.get("n", 0), "avgRiskScore": item.get("avg_risk", 0), "highRiskCount": item.get("high", 0), "totalCostCrore": 0} for item in _load_master().get("ministry_ranking", [])],
+        total_original_cost_cr=round(float(pd.to_numeric(df.get('cost_original_n'), errors='coerce').sum()), 1),
+        total_expenditure_cr=round(float(pd.to_numeric(df.get('cum_exp_n'), errors='coerce').sum()), 1),
+        total_cost_escalation_cr=round(float((pd.to_numeric(df.get('cost_current_n'), errors='coerce') - pd.to_numeric(df.get('cost_original_n'), errors='coerce')).clip(lower=0).sum()), 1),
+        sector_breakdown=[{"sector": item.get("sector"), "projectCount": item.get("n", 0), "avgRiskScore": round(float(item.get("avg_risk", 0)), 1), "highRiskCount": item.get("high", 0), "totalCostCrore": round(float(item.get("cost", 0)), 1)} for item in _load_master().get("sector_ranking", [])],
+        ministry_breakdown=[{"ministry": item.get("ministry"), "projectCount": item.get("n", 0), "avgRiskScore": round(float(item.get("avg_risk", 0)), 1), "highRiskCount": item.get("high", 0), "totalCostCrore": 0} for item in _load_master().get("ministry_ranking", [])],
     )
 
 @app.get("/priority-queue")
