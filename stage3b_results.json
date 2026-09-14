@@ -1,0 +1,142 @@
+{
+  "cost_6m": {
+    "label": "Cost Overrun, 6m horizon",
+    "row_naive": {
+      "roc_auc": 0.596,
+      "pr_auc": 0.051,
+      "brier": 0.039,
+      "base_rate": 0.036,
+      "n": 1288,
+      "n_pos": 47
+    },
+    "row_model": {
+      "roc_auc": 0.822,
+      "pr_auc": 0.508,
+      "brier": 0.032,
+      "base_rate": 0.036,
+      "n": 1288,
+      "n_pos": 47
+    },
+    "proj_naive": {
+      "roc_auc": 0.617,
+      "pr_auc": 0.058,
+      "brier": 0.043,
+      "base_rate": 0.04,
+      "n": 683,
+      "n_pos": 27
+    },
+    "proj_model": {
+      "roc_auc": 0.831,
+      "pr_auc": 0.608,
+      "brier": 0.034,
+      "base_rate": 0.04,
+      "n": 683,
+      "n_pos": 27
+    }
+  },
+  "schedule_6m": {
+    "label": "Time Overrun, 6m horizon",
+    "row_naive": {
+      "roc_auc": 0.766,
+      "pr_auc": 0.553,
+      "brier": 0.175,
+      "base_rate": 0.31,
+      "n": 1288,
+      "n_pos": 399
+    },
+    "row_model": {
+      "roc_auc": 0.879,
+      "pr_auc": 0.788,
+      "brier": 0.143,
+      "base_rate": 0.31,
+      "n": 1288,
+      "n_pos": 399
+    },
+    "proj_naive": {
+      "roc_auc": 0.75,
+      "pr_auc": 0.566,
+      "brier": 0.19,
+      "base_rate": 0.343,
+      "n": 683,
+      "n_pos": 234
+    },
+    "proj_model": {
+      "roc_auc": 0.874,
+      "pr_auc": 0.806,
+      "brier": 0.151,
+      "base_rate": 0.343,
+      "n": 683,
+      "n_pos": 234
+    }
+  },
+  "cost_3m": {
+    "label": "Cost Overrun, 3m horizon",
+    "row_naive": {
+      "roc_auc": 0.756,
+      "pr_auc": 0.029,
+      "brier": 0.011,
+      "base_rate": 0.011,
+      "n": 2729,
+      "n_pos": 31
+    },
+    "row_model": {
+      "roc_auc": 0.936,
+      "pr_auc": 0.663,
+      "brier": 0.011,
+      "base_rate": 0.011,
+      "n": 2729,
+      "n_pos": 31
+    },
+    "proj_naive": {
+      "roc_auc": 0.781,
+      "pr_auc": 0.031,
+      "brier": 0.011,
+      "base_rate": 0.011,
+      "n": 1547,
+      "n_pos": 17
+    },
+    "proj_model": {
+      "roc_auc": 0.939,
+      "pr_auc": 0.671,
+      "brier": 0.011,
+      "base_rate": 0.011,
+      "n": 1547,
+      "n_pos": 17
+    }
+  },
+  "schedule_3m": {
+    "label": "Time Overrun, 3m horizon",
+    "row_naive": {
+      "roc_auc": 0.81,
+      "pr_auc": 0.71,
+      "brier": 0.171,
+      "base_rate": 0.451,
+      "n": 2729,
+      "n_pos": 1232
+    },
+    "row_model": {
+      "roc_auc": 0.904,
+      "pr_auc": 0.882,
+      "brier": 0.124,
+      "base_rate": 0.451,
+      "n": 2729,
+      "n_pos": 1232
+    },
+    "proj_naive": {
+      "roc_auc": 0.79,
+      "pr_auc": 0.733,
+      "brier": 0.18,
+      "base_rate": 0.511,
+      "n": 1547,
+      "n_pos": 791
+    },
+    "proj_model": {
+      "roc_auc": 0.924,
+      "pr_auc": 0.927,
+      "brier": 0.112,
+      "base_rate": 0.511,
+      "n": 1547,
+      "n_pos": 791
+    }
+  }
+}

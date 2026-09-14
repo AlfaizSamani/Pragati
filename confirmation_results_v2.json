@@ -1,0 +1,14 @@
+{
+  "Friend-ORIGINAL (full feature list)": {
+    "row_roc": 0.9014860315410546,
+    "row_pr": 0.8740569320833075,
+    "proj_roc": 0.9364320914121432,
+    "proj_pr": 0.9389319886654872
+  },
+  "Friend-FIXED (full feature list)": {
+    "row_roc": 0.9045870143107331,
+    "row_pr": 0.8709581578052491,
+    "proj_roc": 0.9404633163521656,
+    "proj_pr": 0.9417474515368084
+  }
+}

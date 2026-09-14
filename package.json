@@ -1,0 +1,14 @@
+{
+  "name": "pragati-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "pragttttiii-sherr-main"
+  ],
+  "scripts": {
+    "dev": "npm --prefix pragttttiii-sherr-main run dev",
+    "build": "npm --prefix pragttttiii-sherr-main run build",
+    "start": "npm --prefix pragttttiii-sherr-main start",
+    "lint": "npm --prefix pragttttiii-sherr-main run lint"
+  }
+}

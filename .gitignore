@@ -1,0 +1,56 @@
+# Python
+.venv/
+env/
+venv/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+SteamSetup.exe
+
+# Node & Next.js
+node_modules/
+.next/
+out/
+build/
+dist/
+pragttttiii-sherr-main/node_modules/
+pragttttiii-sherr-main/.next/
+pragttttiii-sherr-main/out/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+pragttttiii-sherr-main/.env.local
+
+# Large raw training & intermediate data (exclude files over 5MB)
+feature_table.csv
+feature_table_14months.csv
+features_panel_FIXED.csv
+stage9_benchmarked.csv
+stage8_scored_with_momentum.csv
+panel_long_14months.csv
+stage_FINAL_test_predictions.csv
+stage_FINAL_v2_test_predictions.csv
+stage_fix_3m_test_predictions.csv
+stage3_modeling_dataset.csv
+stage3_test_predictions.csv
+stage5_test_predictions_dart.csv
+stage7_component_predictions.csv
+stage7_risk_scores.csv
+
+# Experimental model checkpoints (keep model_and_calibrator_FINAL.joblib)
+model_FINAL_v2_dart.joblib
+model_enhanced_lgb.joblib
+model_final_dart.joblib
+*.gguf
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

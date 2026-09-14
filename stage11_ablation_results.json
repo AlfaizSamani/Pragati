@@ -1,0 +1,32 @@
+{
+  "Tier1 (CUF-only)": {
+    "row": {
+      "roc_auc": 0.903,
+      "pr_auc": 0.876,
+      "brier": 0.132
+    },
+    "proj_auc": 0.922,
+    "proj_pr": 0.922,
+    "n_features": 17
+  },
+  "Tier1+2 (+ trajectory)": {
+    "row": {
+      "roc_auc": 0.899,
+      "pr_auc": 0.874,
+      "brier": 0.135
+    },
+    "proj_auc": 0.92,
+    "proj_pr": 0.924,
+    "n_features": 28
+  },
+  "Tier1+2+3 (full Enhanced)": {
+    "row": {
+      "roc_auc": 0.905,
+      "pr_auc": 0.889,
+      "brier": 0.126
+    },
+    "proj_auc": 0.923,
+    "proj_pr": 0.93,
+    "n_features": 34
+  }
+}
