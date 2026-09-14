@@ -14,10 +14,6 @@ function getApiBase(): string {
 }
 
 async function fetchWithSignal<T>(url: string, timeoutMs: number): Promise<T> {
-  // Skip API calls during SSR - only fetch in browser
-  if (typeof window === 'undefined') {
-    throw new Error('API calls are client-only');
-  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {

@@ -20,47 +20,47 @@ interface FeaturedProjectItem {
 const FEATURED_PROJECTS: FeaturedProjectItem[] = [
   {
     id: 1,
-    projectId: 'PROJ-002',
-    name: 'Mumbai-Delhi Expressway Phase 2',
-    sector: 'Highways',
-    status: 'On Track',
-    risk: 'Low',
-    cost: '₹4,200 Cr',
-    imageUrl: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&q=80',
-    fallbackUrl: 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=800&q=80'
-  },
-  {
-    id: 2,
-    projectId: 'PROJ-011',
-    name: 'Central Grid Expansion Project',
-    sector: 'Power',
-    status: 'At Risk',
-    risk: 'High',
-    cost: '₹8,500 Cr',
-    imageUrl: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?auto=format&fit=crop&w=800&q=80',
-    fallbackUrl: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80'
-  },
-  {
-    id: 3,
-    projectId: 'PROJ-003',
-    name: 'Eastern Dedicated Freight Corridor',
+    projectId: '705728',
+    name: 'Mumbai-Ahmedabad High Speed Rail (508 km)',
     sector: 'Railways',
-    status: 'Warning',
-    risk: 'Medium',
-    cost: '₹12,000 Cr',
+    status: 'In Progress',
+    risk: 'Low',
+    cost: '₹1,08,000 Cr',
     imageUrl: 'https://images.unsplash.com/photo-1474487548417-781cb71495f3?auto=format&fit=crop&w=800&q=80',
     fallbackUrl: 'https://images.unsplash.com/photo-1515165562839-50b252723326?auto=format&fit=crop&w=800&q=80'
   },
   {
-    id: 4,
-    projectId: 'PROJ-005',
-    name: 'Navi Mumbai International Airport',
-    sector: 'Aviation',
-    status: 'On Track',
+    id: 2,
+    projectId: '705237',
+    name: 'Western Dedicated Freight Corridor',
+    sector: 'Railways',
+    status: 'Advanced Stage',
     risk: 'Low',
-    cost: '₹16,700 Cr',
-    imageUrl: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&q=80',
+    cost: '₹1,24,005 Cr',
+    imageUrl: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&q=80',
+    fallbackUrl: 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=800&q=80'
+  },
+  {
+    id: 3,
+    projectId: '702668',
+    name: 'Chennai Metro Rail Phase-II Development',
+    sector: 'Urban Transport',
+    status: 'In Progress',
+    risk: 'Medium',
+    cost: '₹63,246 Cr',
+    imageUrl: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80',
     fallbackUrl: 'https://images.unsplash.com/photo-1569154941061-e231b4725ef1?auto=format&fit=crop&w=800&q=80'
+  },
+  {
+    id: 4,
+    projectId: '612134',
+    name: 'Rajasthan REZ Transmission Ph-IV Complex',
+    sector: 'Power & Grid',
+    status: 'At Risk',
+    risk: 'Critical',
+    cost: '₹4,741 Cr',
+    imageUrl: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?auto=format&fit=crop&w=800&q=80',
+    fallbackUrl: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80'
   }
 ];
 

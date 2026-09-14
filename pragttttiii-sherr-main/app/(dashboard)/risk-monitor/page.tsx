@@ -199,12 +199,16 @@ export default function RiskMonitorPage() {
         </Card>
         <Card className="p-4 bg-red-50/30 border-red-200/90">
           <span className="text-[10px] text-red-700 font-bold block uppercase tracking-wider">Critical Projects</span>
-          <span className="text-2xl font-bold text-red-700 mt-1 block">{summary.criticalRiskCount}</span>
+          <span className="text-2xl font-bold text-red-700 mt-1 block">
+            {riskAssessments.length > 0 ? riskAssessments.filter(r => r.riskTier === 'critical').length : summary.criticalRiskCount}
+          </span>
           <span className="text-[11px] text-red-600">Score &ge; 76</span>
         </Card>
         <Card className="p-4 bg-amber-50/30 border-amber-200/90">
           <span className="text-[10px] text-amber-700 font-bold block uppercase tracking-wider">High-Risk Projects</span>
-          <span className="text-2xl font-bold text-amber-800 mt-1 block">{summary.highRiskCount}</span>
+          <span className="text-2xl font-bold text-amber-800 mt-1 block">
+            {riskAssessments.length > 0 ? riskAssessments.filter(r => r.riskTier === 'high').length : summary.highRiskCount}
+          </span>
           <span className="text-[11px] text-amber-700">Score 56–75</span>
         </Card>
         <Card className="p-4 bg-orange-50/30 border-orange-200/90">

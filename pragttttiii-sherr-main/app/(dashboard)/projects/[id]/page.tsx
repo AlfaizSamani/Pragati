@@ -1,5 +1,7 @@
+'use client';
+
+import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
 import { 
   ArrowLeft, 
   Building2, 
@@ -8,9 +10,19 @@ import {
   BarChart2, 
   Clock, 
   FileText, 
-  ArrowUpRight 
+  ArrowUpRight,
+  RotateCcw
 } from 'lucide-react';
 
+import type { 
+  Project, 
+  RiskAssessment, 
+  PredictiveSignal, 
+  Evidence, 
+  Alert, 
+  PeerBenchmark, 
+  InterventionPriority 
+} from '@/lib/types';
 import { 
   getProject, 
   getProjectRisk, 
@@ -30,29 +42,105 @@ interface ProjectPageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function ProjectDetailPage({ params }: ProjectPageProps) {
-  const { id } = await params;
-  const project = await getProject(id);
+export default function ProjectDetailPage({ params }: ProjectPageProps) {
+  const { id } = use(params);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [project, setProject] = useState<Project | null>(null);
+  const [risk, setRisk] = useState<RiskAssessment | null>(null);
+  const [signals, setSignals] = useState<PredictiveSignal[]>([]);
+  const [evidence, setEvidence] = useState<Evidence[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [benchmark, setBenchmark] = useState<PeerBenchmark | null>(null);
+  const [intervention, setIntervention] = useState<InterventionPriority | null>(null);
 
-  if (!project) {
-    notFound();
+  const loadProject = () => {
+    setLoading(true);
+    setError(null);
+    getProject(id)
+      .then(async (proj) => {
+        if (!proj) {
+          setError(`Project with ID "${id}" was not found in the portfolio.`);
+          setLoading(false);
+          return;
+        }
+        setProject(proj);
+
+        // Fetch companion metrics in parallel without failing if one is missing
+        const [rRes, sRes, eRes, aRes, bRes, iRes] = await Promise.allSettled([
+          getProjectRisk(id),
+          getProjectSignals(id),
+          getProjectEvidence(id),
+          getProjectAlerts(id),
+          getProjectBenchmark(id),
+          getProjectIntervention(id)
+        ]);
+
+        if (rRes.status === 'fulfilled' && rRes.value) setRisk(rRes.value);
+        if (sRes.status === 'fulfilled' && sRes.value) setSignals(sRes.value);
+        if (eRes.status === 'fulfilled' && eRes.value) setEvidence(eRes.value);
+        if (aRes.status === 'fulfilled' && aRes.value) setAlerts(aRes.value);
+        if (bRes.status === 'fulfilled' && bRes.value) setBenchmark(bRes.value);
+        if (iRes.status === 'fulfilled' && iRes.value) setIntervention(iRes.value);
+
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error('[PRAGATI] Failed to load project detail:', err);
+        setError(`Failed to load project details: ${err instanceof Error ? err.message : String(err)}`);
+        setLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    loadProject();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="space-y-6 pb-16 animate-pulse">
+        <div className="h-8 bg-slate-200 rounded w-1/4" />
+        <div className="h-48 bg-white rounded-xl border border-slate-200 p-6" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="h-64 bg-white rounded-xl border border-slate-200" />
+          <div className="h-64 bg-white rounded-xl border border-slate-200" />
+          <div className="h-64 bg-white rounded-xl border border-slate-200" />
+        </div>
+      </div>
+    );
   }
 
-  const [
-    risk,
-    signals,
-    evidence,
-    alerts,
-    benchmark,
-    intervention
-  ] = await Promise.all([
-    getProjectRisk(id),
-    getProjectSignals(id),
-    getProjectEvidence(id),
-    getProjectAlerts(id),
-    getProjectBenchmark(id),
-    getProjectIntervention(id)
-  ]);
+  if (error || !project) {
+    return (
+      <div className="space-y-6 pb-16">
+        <Link
+          href="/projects"
+          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-royal transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Projects Workspace</span>
+        </Link>
+        <div className="bg-white rounded-xl border border-red-200 p-8 text-center max-w-lg mx-auto my-12 shadow-sm">
+          <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-3 text-red-600">
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+          <h3 className="text-base font-bold text-slate-900 mb-2">Project Detail Unavailable</h3>
+          <p className="text-sm text-slate-500 mb-4">{error || 'Project data could not be loaded.'}</p>
+          <div className="flex items-center justify-center gap-3">
+            <Button variant="primary" size="sm" onClick={loadProject}>
+              <RotateCcw className="w-4 h-4 mr-1.5" />
+              Retry
+            </Button>
+            <Link href="/projects">
+              <Button variant="outline" size="sm">
+                Back to All Projects
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const tierConfig = risk ? RISK_TIER_CONFIG[risk.riskTier] : RISK_TIER_CONFIG.medium;
   const dominantConfig = risk ? DOMINANT_RISK_CONFIG[risk.dominantRisk] : null;
@@ -60,7 +148,7 @@ export default async function ProjectDetailPage({ params }: ProjectPageProps) {
   const categoryConfig = intervention ? INTERVENTION_CATEGORY_CONFIG[intervention.reviewCategory] : null;
 
   const costEscalation = formatCostEscalation(project.originalCostCrore, project.revisedCostCrore);
-  const expPercentage = (project.expenditureCrore / project.revisedCostCrore) * 100;
+  const expPercentage = project.revisedCostCrore > 0 ? (project.expenditureCrore / project.revisedCostCrore) * 100 : 0;
 
   return (
     <div className="space-y-6 pb-16">

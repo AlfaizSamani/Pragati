@@ -14,6 +14,12 @@ const LiveRiskMap = dynamic(
   }
 );
 
-export default function LiveRiskMapWrapper() {
-  return <LiveRiskMap />;
+interface LiveRiskMapWrapperProps {
+  height?: string;
+  className?: string;
+  compact?: boolean;
+}
+
+export default function LiveRiskMapWrapper({ height, className, compact }: LiveRiskMapWrapperProps) {
+  return <LiveRiskMap height={height} className={className} compact={compact} />;
 }

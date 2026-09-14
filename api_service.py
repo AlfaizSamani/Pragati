@@ -311,7 +311,7 @@ def ingest_monthly_records(request: Request, payload: MonthlyRecordsRequest, mon
 @app.get("/portfolio/summary")
 def portfolio_summary(month: str = "2026-06"):
     df = _load_scored(month)
-    risk_scores = pd.to_numeric(df.get('risk_score'), errors='coerce').fillna(0)
+    risk_scores = pd.to_numeric(df.get('risk_score'), errors='coerce').fillna(0).round(1)
     
     critical_count = int((risk_scores > 75).sum())
     high_count = int(((risk_scores > 55) & (risk_scores <= 75)).sum())

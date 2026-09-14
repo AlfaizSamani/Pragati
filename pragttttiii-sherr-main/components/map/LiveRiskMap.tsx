@@ -30,7 +30,13 @@ interface MapProject extends Project {
   dominantRisk?: string;
 }
 
-export default function LiveRiskMap() {
+interface LiveRiskMapProps {
+  height?: string;
+  className?: string;
+  compact?: boolean;
+}
+
+export default function LiveRiskMap({ height = 'h-[800px]', className = '', compact = false }: LiveRiskMapProps) {
   const [projects, setProjects] = useState<MapProject[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -78,11 +84,11 @@ export default function LiveRiskMap() {
   ];
 
   return (
-    <div className="h-[800px] w-full rounded-xl overflow-hidden shadow-2xl border border-slate-800 bg-[#0f172a]">
+    <div className={`${height} w-full rounded-xl overflow-hidden shadow-2xl border border-slate-800 bg-[#0f172a] ${className}`}>
       <MapContainer
         center={[22.5937, 78.9629]}
-        zoom={5}
-        minZoom={4}
+        zoom={compact ? 4 : 5}
+        minZoom={compact ? 3.5 : 4}
         maxBounds={indiaBounds}
         maxBoundsViscosity={1.0}
         style={{ height: '100%', width: '100%', zIndex: 0, backgroundColor: '#090d16' }}
