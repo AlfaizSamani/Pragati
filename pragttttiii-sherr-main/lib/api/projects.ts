@@ -1,7 +1,4 @@
 import type { Project, RiskAssessment, ProjectMonthSnapshot, PredictiveSignal, Evidence, Alert, PeerBenchmark, InterventionPriority, ProjectFilters } from '@/lib/types';
-import { mockProjects, mockRiskAssessments } from '@/data/mock/projects';
-import { mockAlerts, mockInterventions, mockBenchmarks } from '@/data/mock/alerts-interventions';
-import { mockSignals, mockEvidence } from '@/data/mock/signals-evidence';
 
 const RENDER_PROD_URL = 'https://pragati-wuh7.onrender.com';
 
@@ -17,6 +14,10 @@ function getApiBase(): string {
 }
 
 async function fetchWithSignal<T>(url: string, timeoutMs: number): Promise<T> {
+  // Skip API calls during SSR - only fetch in browser
+  if (typeof window === 'undefined') {
+    throw new Error('API calls are client-only');
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -25,27 +26,37 @@ async function fetchWithSignal<T>(url: string, timeoutMs: number): Promise<T> {
       signal: controller.signal,
     });
     clearTimeout(timer);
-    if (!response.ok) throw new Error(`API request failed: ${response.status}`);
+    if (!response.ok) throw new Error(`API ${url} returned ${response.status}`);
     return (await response.json()) as T;
-  } catch (err) {
+  } catch (err: unknown) {
     clearTimeout(timer);
+    // Check for AbortError (works in both browser and Node)
+    if (err && typeof err === 'object' && 'name' in err && (err as { name: string }).name === 'AbortError') {
+      throw new Error(`API timeout: ${url} did not respond within ${timeoutMs / 1000}s`);
+    }
     throw err;
   }
 }
 
-async function apiGet<T>(path: string, timeoutMs = 30000): Promise<T> {
+async function apiGet<T>(path: string, timeoutMs = 60000): Promise<T> {
   const primary = getApiBase();
+  const url = `${primary}${path}`;
+  console.log(`[PRAGATI] Fetching ${url} (timeout: ${timeoutMs / 1000}s)`);
   try {
-    console.log(`[PRAGATI] Fetching ${primary}${path} (timeout: ${timeoutMs}ms)`);
-    return await fetchWithSignal<T>(`${primary}${path}`, timeoutMs);
+    const result = await fetchWithSignal<T>(url, timeoutMs);
+    console.log(`[PRAGATI] ✅ ${path} loaded successfully`);
+    return result;
   } catch (err) {
-    console.error(`[PRAGATI] API call failed: ${primary}${path}`, err);
+    console.error(`[PRAGATI] ❌ ${url} failed:`, err);
+    // If primary wasn't Render, try Render as fallback
     if (primary !== RENDER_PROD_URL) {
-      console.warn(`[PRAGATI] Primary API ${primary} failed, connecting directly to Render backend...`);
+      console.warn(`[PRAGATI] Trying Render fallback for ${path}...`);
       try {
-        return await fetchWithSignal<T>(`${RENDER_PROD_URL}${path}`, timeoutMs);
+        const result = await fetchWithSignal<T>(`${RENDER_PROD_URL}${path}`, timeoutMs);
+        console.log(`[PRAGATI] ✅ Render fallback for ${path} succeeded`);
+        return result;
       } catch (fallbackErr) {
-        console.error(`[PRAGATI] Fallback to Render also failed: ${RENDER_PROD_URL}${path}`, fallbackErr);
+        console.error(`[PRAGATI] ❌ Render fallback also failed for ${path}:`, fallbackErr);
         throw fallbackErr;
       }
     }
@@ -53,19 +64,12 @@ async function apiGet<T>(path: string, timeoutMs = 30000): Promise<T> {
   }
 }
 
+// ── Projects ──────────────────────────────────────────────
+
 export async function getProjects(filters?: ProjectFilters): Promise<Project[]> {
-  try {
-    const projects = await apiGet<Project[]>('/projects', 45000);
-    console.log(`[PRAGATI] Loaded ${projects?.length ?? 0} projects from API`);
-    if (projects && projects.length > 0) {
-      return applyFilters(projects, filters);
-    }
-    console.warn('[PRAGATI] API returned empty projects, using mock data');
-    return applyFilters(mockProjects, filters);
-  } catch (err) {
-    console.error('[PRAGATI] Failed to load projects from API, falling back to mock data:', err);
-    return applyFilters(mockProjects, filters);
-  }
+  const projects = await apiGet<Project[]>('/projects');
+  console.log(`[PRAGATI] Got ${projects.length} projects`);
+  return applyFilters(projects, filters);
 }
 
 function applyFilters(projects: Project[], filters?: ProjectFilters): Project[] {
@@ -84,114 +88,60 @@ function applyFilters(projects: Project[], filters?: ProjectFilters): Project[] 
 }
 
 export async function getProject(id: string): Promise<Project | undefined> {
-  try {
-    const p = await apiGet<Project>(`/projects/${encodeURIComponent(id)}`);
-    return p || mockProjects.find(m => m.id === id);
-  } catch (err) {
-    console.error(`[PRAGATI] Failed to load project ${id}:`, err);
-    return mockProjects.find(m => m.id === id);
-  }
+  return await apiGet<Project>(`/projects/${encodeURIComponent(id)}`);
 }
 
+// ── Risk Assessments ──────────────────────────────────────
+
 export async function getProjectRisk(projectId: string): Promise<RiskAssessment | undefined> {
-  try {
-    const assessments = await apiGet<RiskAssessment[]>('/risk-assessments');
-    return assessments.find(assessment => assessment.projectId === projectId) || mockRiskAssessments.find(r => r.projectId === projectId);
-  } catch (err) {
-    console.error(`[PRAGATI] Failed to load risk for project ${projectId}:`, err);
-    return mockRiskAssessments.find(r => r.projectId === projectId);
-  }
+  const assessments = await apiGet<RiskAssessment[]>('/risk-assessments');
+  return assessments.find(a => a.projectId === projectId);
 }
 
 export async function getAllRiskAssessments(): Promise<RiskAssessment[]> {
-  try {
-    const assessments = await apiGet<RiskAssessment[]>('/risk-assessments');
-    console.log(`[PRAGATI] Loaded ${assessments?.length ?? 0} risk assessments from API`);
-    if (assessments && assessments.length > 0) return assessments;
-    return mockRiskAssessments;
-  } catch (err) {
-    console.error('[PRAGATI] Failed to load risk assessments:', err);
-    return mockRiskAssessments;
-  }
+  const assessments = await apiGet<RiskAssessment[]>('/risk-assessments');
+  console.log(`[PRAGATI] Got ${assessments.length} risk assessments`);
+  return assessments;
 }
 
+// ── History / Signals / Evidence ──────────────────────────
+
 export async function getProjectHistory(projectId: string): Promise<ProjectMonthSnapshot[]> {
-  try {
-    return await apiGet<ProjectMonthSnapshot[]>(`/projects/${encodeURIComponent(projectId)}/history`);
-  } catch (err) {
-    console.error(`[PRAGATI] Failed to load history for ${projectId}:`, err);
-    return [];
-  }
+  return await apiGet<ProjectMonthSnapshot[]>(`/projects/${encodeURIComponent(projectId)}/history`);
 }
 
 export async function getProjectSignals(projectId: string): Promise<PredictiveSignal[]> {
-  try {
-    const signals = await apiGet<PredictiveSignal[]>(`/projects/${encodeURIComponent(projectId)}/signals`);
-    if (signals && signals.length > 0) return signals;
-    return mockSignals[projectId] || [];
-  } catch (err) {
-    console.error(`[PRAGATI] Failed to load signals for ${projectId}:`, err);
-    return mockSignals[projectId] || [];
-  }
+  return await apiGet<PredictiveSignal[]>(`/projects/${encodeURIComponent(projectId)}/signals`);
 }
 
 export async function getProjectEvidence(projectId: string): Promise<Evidence[]> {
-  try {
-    const evidence = await apiGet<Evidence[]>(`/projects/${encodeURIComponent(projectId)}/evidence`);
-    if (evidence && evidence.length > 0) return evidence;
-    return mockEvidence[projectId] || [];
-  } catch (err) {
-    console.error(`[PRAGATI] Failed to load evidence for ${projectId}:`, err);
-    return mockEvidence[projectId] || [];
-  }
+  return await apiGet<Evidence[]>(`/projects/${encodeURIComponent(projectId)}/evidence`);
 }
+
+// ── Alerts ────────────────────────────────────────────────
 
 export async function getProjectAlerts(projectId: string): Promise<Alert[]> {
-  try {
-    const alerts = await apiGet<Alert[]>(`/projects/${encodeURIComponent(projectId)}/alerts`);
-    if (alerts && alerts.length > 0) return alerts;
-    return mockAlerts.filter(a => a.projectId === projectId);
-  } catch (err) {
-    console.error(`[PRAGATI] Failed to load alerts for ${projectId}:`, err);
-    return mockAlerts.filter(a => a.projectId === projectId);
-  }
-}
-
-export async function getProjectBenchmark(projectId: string): Promise<PeerBenchmark | undefined> {
-  try {
-    return (await apiGet<PeerBenchmark>(`/projects/${encodeURIComponent(projectId)}/benchmark`)) || mockBenchmarks[projectId];
-  } catch (err) {
-    console.error(`[PRAGATI] Failed to load benchmark for ${projectId}:`, err);
-    return mockBenchmarks[projectId];
-  }
-}
-
-export async function getProjectIntervention(projectId: string): Promise<InterventionPriority | undefined> {
-  try {
-    return (await apiGet<InterventionPriority>(`/projects/${encodeURIComponent(projectId)}/intervention`)) || mockInterventions.find(i => i.projectId === projectId);
-  } catch (err) {
-    console.error(`[PRAGATI] Failed to load intervention for ${projectId}:`, err);
-    return mockInterventions.find(i => i.projectId === projectId);
-  }
+  return await apiGet<Alert[]>(`/projects/${encodeURIComponent(projectId)}/alerts`);
 }
 
 export async function getAllAlerts(): Promise<Alert[]> {
-  try {
-    const alerts = await apiGet<Alert[]>('/alerts', 45000);
-    console.log(`[PRAGATI] Loaded ${alerts?.length ?? 0} alerts from API`);
-    if (alerts && alerts.length > 0) return alerts;
-    return mockAlerts;
-  } catch (err) {
-    console.error('[PRAGATI] Failed to load alerts:', err);
-    return mockAlerts;
-  }
+  const alerts = await apiGet<Alert[]>('/alerts');
+  console.log(`[PRAGATI] Got ${alerts.length} alerts`);
+  return alerts;
 }
 
+// ── Benchmarks & Interventions ────────────────────────────
+
+export async function getProjectBenchmark(projectId: string): Promise<PeerBenchmark | undefined> {
+  return await apiGet<PeerBenchmark>(`/projects/${encodeURIComponent(projectId)}/benchmark`);
+}
+
+export async function getProjectIntervention(projectId: string): Promise<InterventionPriority | undefined> {
+  return await apiGet<InterventionPriority>(`/projects/${encodeURIComponent(projectId)}/intervention`);
+}
+
+// ── Trajectories ──────────────────────────────────────────
+
 export async function getAllProjectTrajectories(): Promise<Record<string, ProjectMonthSnapshot[]>> {
-  try {
-    return await apiGet<Record<string, ProjectMonthSnapshot[]>>('/trajectories');
-  } catch (err) {
-    console.error('[PRAGATI] Failed to load trajectories:', err);
-    return {};
-  }
+  return await apiGet<Record<string, ProjectMonthSnapshot[]>>('/trajectories');
 }

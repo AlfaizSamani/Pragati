@@ -27,30 +27,35 @@ function useMounted() {
 export default function RiskMonitorPage() {
   const mounted = useMounted();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [riskAssessments, setRiskAssessments] = useState<RiskAssessment[]>([]);
   const [trajectories, setTrajectories] = useState<Record<string, ProjectMonthSnapshot[]>>({});
 
-  useEffect(() => {
-    let active = true;
+  const loadData = () => {
+    setLoading(true);
+    setError(null);
     Promise.all([
       getPortfolioSummary(),
       getProjects(),
       getAllRiskAssessments(),
       getAllProjectTrajectories()
     ]).then(([sumData, projData, riskData, trajData]) => {
-      if (!active) return;
       setSummary(sumData);
       setProjects(projData);
       setRiskAssessments(riskData);
       setTrajectories(trajData);
       setLoading(false);
     }).catch(err => {
-      console.error(err);
+      console.error('[PRAGATI] Risk Monitor load failed:', err);
+      setError(`Failed to load data: ${err instanceof Error ? err.message : String(err)}`);
       setLoading(false);
     });
-    return () => { active = false; };
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const projectMap = useMemo(() => new Map(projects.map(p => [p.id, p])), [projects]);
@@ -111,6 +116,20 @@ export default function RiskMonitorPage() {
     const sum = riskAssessments.reduce((acc, r) => acc + r.confidence, 0);
     return Math.round((sum / riskAssessments.length) * 100);
   }, [riskAssessments]);
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-xl border border-red-200 p-8 text-center max-w-lg mx-auto my-12 shadow-sm">
+        <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-3 text-red-600">
+          <Activity className="w-6 h-6" />
+        </div>
+        <h3 className="text-base font-bold text-royal mb-2">Connection to Backend Failed</h3>
+        <p className="text-sm text-slate-500 mb-1">{error}</p>
+        <p className="text-xs text-slate-400 mb-4">The Render backend may be cold-starting. This can take up to 60 seconds on the free tier.</p>
+        <Button variant="primary" size="sm" onClick={loadData} className="mt-2">Retry</Button>
+      </div>
+    );
+  }
 
   if (loading || !summary) {
     return (

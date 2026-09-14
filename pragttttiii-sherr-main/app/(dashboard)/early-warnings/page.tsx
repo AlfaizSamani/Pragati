@@ -20,8 +20,6 @@ import {
 } from 'lucide-react';
 
 import { getAllAlerts, getProjects } from '@/lib/api/projects';
-import { mockAlerts } from '@/data/mock/alerts-interventions';
-import { mockProjects } from '@/data/mock/projects';
 import { Alert, Project, RiskTier, DominantRiskType } from '@/lib/types';
 import { RISK_TIER_CONFIG, DOMINANT_RISK_CONFIG } from '@/lib/constants';
 import { formatMonth } from '@/lib/utils';
@@ -29,9 +27,10 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 
 export default function EarlyWarningsPage() {
-  const [loading, setLoading] = useState(false);
-  const [alerts, setAlerts] = useState<Alert[]>(mockAlerts);
-  const [projects, setProjects] = useState<Project[]>(mockProjects);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -40,21 +39,25 @@ export default function EarlyWarningsPage() {
   const [selectedState, setSelectedState] = useState('');
   const [statusFilter, setStatusFilter] = useState<'active' | 'all'>('active');
 
-  useEffect(() => {
-    let active = true;
+  const loadData = () => {
+    setLoading(true);
+    setError(null);
     Promise.all([
       getAllAlerts(),
       getProjects()
     ]).then(([alertsData, projectsData]) => {
-      if (!active) return;
       setAlerts(alertsData);
       setProjects(projectsData);
       setLoading(false);
     }).catch(err => {
-      console.error(err);
+      console.error('[PRAGATI] Early Warnings load failed:', err);
+      setError(`Failed to load data: ${err instanceof Error ? err.message : String(err)}`);
       setLoading(false);
     });
-    return () => { active = false; };
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const projectMap = useMemo(() => new Map(projects.map(p => [p.id, p])), [projects]);
@@ -103,6 +106,22 @@ export default function EarlyWarningsPage() {
     setSelectedState('');
     setStatusFilter('active');
   };
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-xl border border-red-200 p-8 text-center max-w-lg mx-auto my-12 shadow-sm">
+        <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-3 text-red-600">
+          <AlertTriangle className="w-6 h-6" />
+        </div>
+        <h3 className="text-base font-bold text-royal mb-2">Connection to Backend Failed</h3>
+        <p className="text-sm text-slate-500 mb-1">{error}</p>
+        <p className="text-xs text-slate-400 mb-4">The Render backend may be cold-starting. This can take up to 60 seconds on the free tier.</p>
+        <Button variant="primary" size="sm" onClick={loadData}>
+          <RotateCcw className="w-4 h-4 mr-1" /> Retry
+        </Button>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

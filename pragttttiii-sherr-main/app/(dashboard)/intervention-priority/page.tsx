@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/Button';
 
 export default function InterventionPriorityPage() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [interventions, setInterventions] = useState<InterventionPriority[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [riskAssessments, setRiskAssessments] = useState<RiskAssessment[]>([]);
@@ -31,23 +32,27 @@ export default function InterventionPriorityPage() {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedSector, setSelectedSector] = useState('');
 
-  useEffect(() => {
-    let active = true;
+  const loadData = () => {
+    setLoading(true);
+    setError(null);
     Promise.all([
       getInterventionQueue(),
       getProjects(),
       getAllRiskAssessments()
     ]).then(([intervData, projData, riskData]) => {
-      if (!active) return;
       setInterventions(intervData);
       setProjects(projData);
       setRiskAssessments(riskData);
       setLoading(false);
     }).catch(err => {
-      console.error(err);
+      console.error('[PRAGATI] Intervention Priority load failed:', err);
+      setError(`Failed to load data: ${err instanceof Error ? err.message : String(err)}`);
       setLoading(false);
     });
-    return () => { active = false; };
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const projectMap = useMemo(() => new Map(projects.map(p => [p.id, p])), [projects]);
@@ -85,6 +90,22 @@ export default function InterventionPriorityPage() {
     setSelectedCategory('');
     setSelectedSector('');
   };
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-xl border border-red-200 p-8 text-center max-w-lg mx-auto my-12 shadow-sm">
+        <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-3 text-red-600">
+          <Target className="w-6 h-6" />
+        </div>
+        <h3 className="text-base font-bold text-royal mb-2">Connection to Backend Failed</h3>
+        <p className="text-sm text-slate-500 mb-1">{error}</p>
+        <p className="text-xs text-slate-400 mb-4">The Render backend may be cold-starting. This can take up to 60 seconds on the free tier.</p>
+        <Button variant="primary" size="sm" onClick={loadData}>
+          <RotateCcw className="w-4 h-4 mr-1" /> Retry
+        </Button>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

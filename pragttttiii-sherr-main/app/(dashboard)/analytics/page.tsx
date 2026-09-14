@@ -20,9 +20,6 @@ import { ResponsiveContainer, PieChart as RePieChart, Pie, Cell, Tooltip, BarCha
 
 import { getPortfolioSummary, getStateRiskSummaries, getInterventionQueue } from '@/lib/api/portfolio';
 import { getProjects, getAllRiskAssessments, getAllAlerts } from '@/lib/api/projects';
-import { mockPortfolioSummary } from '@/data/mock/portfolio';
-import { mockProjects, mockRiskAssessments } from '@/data/mock/projects';
-import { mockInterventions, mockAlerts } from '@/data/mock/alerts-interventions';
 import { PortfolioSummary, Project, RiskAssessment, InterventionPriority, StateRiskSummary, Alert } from '@/lib/types';
 import { RISK_TIER_CONFIG, DOMINANT_RISK_CONFIG, PRIORITY_LEVEL_CONFIG } from '@/lib/constants';
 import { formatCurrency, formatLakhCrore } from '@/lib/utils';
@@ -35,17 +32,19 @@ function useMounted() {
 
 export default function AnalyticsPage() {
   const mounted = useMounted();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'portfolio' | 'risk' | 'sector' | 'cost_schedule' | 'interventions'>('portfolio');
 
-  const [summary, setSummary] = useState<PortfolioSummary>(mockPortfolioSummary);
-  const [projects, setProjects] = useState<Project[]>(mockProjects);
-  const [riskAssessments, setRiskAssessments] = useState<RiskAssessment[]>(mockRiskAssessments);
-  const [interventions, setInterventions] = useState<InterventionPriority[]>(mockInterventions);
-  const [alerts, setAlerts] = useState<Alert[]>(mockAlerts);
+  const [summary, setSummary] = useState<PortfolioSummary | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [riskAssessments, setRiskAssessments] = useState<RiskAssessment[]>([]);
+  const [interventions, setInterventions] = useState<InterventionPriority[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
 
-  useEffect(() => {
-    let active = true;
+  const loadData = () => {
+    setLoading(true);
+    setError(null);
     Promise.all([
       getPortfolioSummary(),
       getProjects(),
@@ -53,7 +52,6 @@ export default function AnalyticsPage() {
       getInterventionQueue(),
       getAllAlerts()
     ]).then(([sumData, projData, riskData, intervData, alertData]) => {
-      if (!active) return;
       setSummary(sumData);
       setProjects(projData);
       setRiskAssessments(riskData);
@@ -61,10 +59,14 @@ export default function AnalyticsPage() {
       setAlerts(alertData);
       setLoading(false);
     }).catch(err => {
-      console.error(err);
+      console.error('[PRAGATI] Analytics load failed:', err);
+      setError(`Failed to load data: ${err instanceof Error ? err.message : String(err)}`);
       setLoading(false);
     });
-    return () => { active = false; };
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const totalCostOverrun = useMemo(() => {
@@ -82,6 +84,20 @@ export default function AnalyticsPage() {
     });
     return counts;
   }, [riskAssessments]);
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-xl border border-red-200 p-8 text-center max-w-lg mx-auto my-12 shadow-sm">
+        <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-3 text-red-600">
+          <PieChart className="w-6 h-6" />
+        </div>
+        <h3 className="text-base font-bold text-royal mb-2">Connection to Backend Failed</h3>
+        <p className="text-sm text-slate-500 mb-1">{error}</p>
+        <p className="text-xs text-slate-400 mb-4">The Render backend may be cold-starting. This can take up to 60 seconds on the free tier.</p>
+        <button onClick={loadData} className="px-4 py-2 bg-sky-600 text-white text-sm font-medium rounded-lg hover:bg-sky-700 transition">Retry</button>
+      </div>
+    );
+  }
 
   if (loading || !summary) {
     return (

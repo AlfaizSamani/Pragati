@@ -47,27 +47,29 @@ export default function ProjectsPage() {
   const [selectedStatus, setSelectedStatus] = useState('');
   const [sortBy, setSortBy] = useState('risk_desc');
 
-  useEffect(() => {
-    let active = true;
+  const loadData = () => {
+    setLoading(true);
+    setError(null);
     Promise.all([
       getProjects(),
       getAllRiskAssessments(),
       getInterventionQueue()
     ])
       .then(([projData, riskData, intervData]) => {
-        if (!active) return;
         setProjects(projData);
         setRiskAssessments(riskData);
         setInterventions(intervData);
         setLoading(false);
       })
       .catch(err => {
-        if (!active) return;
-        console.error(err);
-        setError('Failed to load project records.');
+        console.error('[PRAGATI] Page load failed:', err);
+        setError(`Failed to load data from API: ${err instanceof Error ? err.message : String(err)}`);
         setLoading(false);
       });
-    return () => { active = false; };
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const riskMap = useMemo(() => new Map(riskAssessments.map(r => [r.projectId, r])), [riskAssessments]);
@@ -187,9 +189,11 @@ export default function ProjectsPage() {
         <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-3 text-red-600">
           <AlertTriangle className="w-6 h-6" />
         </div>
-        <h3 className="text-base font-bold text-royal">{error}</h3>
-        <Button variant="primary" size="sm" onClick={() => window.location.reload()} className="mt-4">
-          Retry
+        <h3 className="text-base font-bold text-royal mb-2">Connection to Backend Failed</h3>
+        <p className="text-sm text-slate-500 mb-1">{error}</p>
+        <p className="text-xs text-slate-400 mb-4">The Render backend may be cold-starting. This can take up to 60 seconds on the free tier.</p>
+        <Button variant="primary" size="sm" onClick={loadData} className="mt-2">
+          <RotateCcw className="w-4 h-4 mr-1" /> Retry
         </Button>
       </div>
     );
