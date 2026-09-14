@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState } from 'react';
 import { FileUp, Database, CheckCircle2, AlertTriangle, UploadCloud } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
