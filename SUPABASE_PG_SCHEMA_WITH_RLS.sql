@@ -4,9 +4,18 @@
 
 create extension if not exists pgcrypto;
 
-create type if not exists public.app_role as enum ('viewer', 'officer', 'admin');
-create type if not exists public.ingestion_status as enum ('queued', 'processing', 'validated', 'published', 'failed', 'rejected');
-create type if not exists public.dataset_publish_status as enum ('draft', 'validated', 'published', 'rollback');
+do $$
+begin
+    if not exists (select 1 from pg_type where typname = 'app_role') then
+        create type public.app_role as enum ('viewer', 'officer', 'admin');
+    end if;
+    if not exists (select 1 from pg_type where typname = 'ingestion_status') then
+        create type public.ingestion_status as enum ('queued', 'processing', 'validated', 'published', 'failed', 'rejected');
+    end if;
+    if not exists (select 1 from pg_type where typname = 'dataset_publish_status') then
+        create type public.dataset_publish_status as enum ('draft', 'validated', 'published', 'rollback');
+    end if;
+end $$;
 
 -- Profiles
 create table if not exists public.profiles (
@@ -260,98 +269,126 @@ alter table public.published_ministry_ranking enable row level security;
 
 -- Helper policy allows service role to bypass through backend. Not for browser.
 -- Public read: published tables
+drop policy if exists "Public can read published projects" on public.published_projects;
 create policy "Public can read published projects" on public.published_projects
 for select using (true);
 
+drop policy if exists "Public can read published risk assessments" on public.published_risk_assessments;
 create policy "Public can read published risk assessments" on public.published_risk_assessments
 for select using (true);
 
+drop policy if exists "Public can read published alerts" on public.published_alerts;
 create policy "Public can read published alerts" on public.published_alerts
 for select using (true);
 
+drop policy if exists "Public can read published interventions" on public.published_interventions;
 create policy "Public can read published interventions" on public.published_interventions
 for select using (true);
 
+drop policy if exists "Public can read published sector ranking" on public.published_sector_ranking;
 create policy "Public can read published sector ranking" on public.published_sector_ranking
 for select using (true);
 
+drop policy if exists "Public can read published ministry ranking" on public.published_ministry_ranking;
 create policy "Public can read published ministry ranking" on public.published_ministry_ranking
 for select using (true);
 
 -- Profiles: self-read and officer/admin read
+drop policy if exists "Profiles visible to self or officer/admin" on public.profiles;
 create policy "Profiles visible to self or officer/admin" on public.profiles
 for select using (
     auth.uid() = id or public.is_officer_or_admin()
 );
 
+drop policy if exists "Profiles update by self" on public.profiles;
 create policy "Profiles update by self" on public.profiles
 for update using (auth.uid() = id) with check (auth.uid() = id);
 
+drop policy if exists "Profiles insert by self" on public.profiles;
 create policy "Profiles insert by self" on public.profiles
 for insert with check (auth.uid() = id);
 
 -- Roles table: public read is okay for UI but edits admin-only
+drop policy if exists "Role list readable by authenticated users" on public.roles;
 create policy "Role list readable by authenticated users" on public.roles
 for select using (auth.role() = 'authenticated' or public.is_officer_or_admin());
 
+drop policy if exists "Roles admin managed only" on public.roles;
 create policy "Roles admin managed only" on public.roles
 for all using (public.is_admin()) with check (public.is_admin());
 
 -- User roles: self-read, officer/admin full read, admin assign/remove
+drop policy if exists "User roles self read or admin/officer managers" on public.user_roles;
 create policy "User roles self read or admin/officer managers" on public.user_roles
 for select using (
     auth.uid() = user_id or public.is_officer_or_admin() or public.is_admin()
 );
 
+drop policy if exists "User roles admins manage" on public.user_roles;
 create policy "User roles admins manage" on public.user_roles
 for all using (public.is_admin()) with check (public.is_admin());
 
 -- Ingestion jobs: officer/admin can read own or all; insert by officer/admin; update by officer/admin
+drop policy if exists "Officer admin create ingestion jobs" on public.ingestion_jobs;
 create policy "Officer admin create ingestion jobs" on public.ingestion_jobs
 for insert with check (public.is_officer_or_admin());
 
+drop policy if exists "Officer admin select ingestion jobs" on public.ingestion_jobs;
 create policy "Officer admin select ingestion jobs" on public.ingestion_jobs
 for select using (public.is_officer_or_admin());
 
+drop policy if exists "Officer admin update ingestion jobs" on public.ingestion_jobs;
 create policy "Officer admin update ingestion jobs" on public.ingestion_jobs
 for update using (public.is_officer_or_admin()) with check (public.is_officer_or_admin());
 
 -- Dataset versions: officer/admin read/write, public read suppressed except published table copies
+drop policy if exists "Dataset versions officer admin read" on public.dataset_versions;
 create policy "Dataset versions officer admin read" on public.dataset_versions
 for select using (public.is_officer_or_admin());
 
+drop policy if exists "Dataset versions officer admin write" on public.dataset_versions;
 create policy "Dataset versions officer admin write" on public.dataset_versions
 for insert with check (public.is_officer_or_admin());
 
+drop policy if exists "Dataset versions admin and officer update" on public.dataset_versions;
 create policy "Dataset versions admin and officer update" on public.dataset_versions
 for update using (public.is_officer_or_admin()) with check (public.is_officer_or_admin());
 
 -- published table data is read-only to public. Backend service role writes. Browser is never allowed writes.
+drop policy if exists "Published project writes via service role only" on public.published_projects;
 create policy "Published project writes via service role only" on public.published_projects
 for all using (false) with check (false);
 
+drop policy if exists "Published risk writes via service role only" on public.published_risk_assessments;
 create policy "Published risk writes via service role only" on public.published_risk_assessments
 for all using (false) with check (false);
 
+drop policy if exists "Published alerts writes via service role only" on public.published_alerts;
 create policy "Published alerts writes via service role only" on public.published_alerts
 for all using (false) with check (false);
 
+drop policy if exists "Published interventions writes via service role only" on public.published_interventions;
 create policy "Published interventions writes via service role only" on public.published_interventions
 for all using (false) with check (false);
 
+drop policy if exists "Published rankings writes via service role only" on public.published_sector_ranking;
 create policy "Published rankings writes via service role only" on public.published_sector_ranking
 for all using (false) with check (false);
 
+drop policy if exists "Published rankings writes via service role only" on public.published_ministry_ranking;
 create policy "Published rankings writes via service role only" on public.published_ministry_ranking
 for all using (false) with check (false);
 
 -- Audit events: read/write by officer/admin, self only for login events if needed
+drop policy if exists "Audit event officer/admin read" on public.audit_events;
 create policy "Audit event officer/admin read" on public.audit_events
 for select using (public.is_officer_or_admin());
 
+drop policy if exists "Audit event officer/admin insert" on public.audit_events;
 create policy "Audit event officer/admin insert" on public.audit_events
 for insert with check (public.is_officer_or_admin());
 
+drop policy if exists "Audit event admin update" on public.audit_events;
 create policy "Audit event admin update" on public.audit_events
 for update using (public.is_admin()) with check (public.is_admin());
 
@@ -364,22 +401,26 @@ set public = false,
     file_size_limit = 50 * 1024 * 1024,
     allowed_mime_types = ARRAY['application/pdf'];
 
+drop policy if exists "Officer or admin can upload source PDF" on storage.objects;
 create policy "Officer or admin can upload source PDF" on storage.objects
 for insert with check (
     bucket_id = 'source-pdfs'
     and public.is_officer_or_admin()
 );
 
+drop policy if exists "Officer or admin can read source PDF" on storage.objects;
 create policy "Officer or admin can read source PDF" on storage.objects
 for select using (
     bucket_id = 'source-pdfs'
     and public.is_officer_or_admin()
 );
 
+drop policy if exists "Officer or admin can update/delete source PDF" on storage.objects;
 create policy "Officer or admin can update/delete source PDF" on storage.objects
 for update using (bucket_id = 'source-pdfs' and public.is_officer_or_admin())
 with check (bucket_id = 'source-pdfs' and public.is_officer_or_admin());
 
+drop policy if exists "Officer or admin can delete source PDF" on storage.objects;
 create policy "Officer or admin can delete source PDF" on storage.objects
 for delete using (bucket_id = 'source-pdfs' and public.is_officer_or_admin());
 
