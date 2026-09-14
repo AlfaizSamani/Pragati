@@ -5,10 +5,21 @@ import { mockSignals, mockEvidence } from '@/data/mock/signals-evidence';
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://pragati-wuh7.onrender.com').replace(/\/+$/, '');
 
-async function apiGet<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, { cache: 'no-store' });
-  if (!response.ok) throw new Error(`API request failed: ${response.status}`);
-  return response.json() as Promise<T>;
+async function apiGet<T>(path: string, timeoutMs = 2500): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${API_BASE}${path}`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (!response.ok) throw new Error(`API request failed: ${response.status}`);
+    return (await response.json()) as T;
+  } catch (err) {
+    clearTimeout(timer);
+    throw err;
+  }
 }
 
 export async function getProjects(filters?: ProjectFilters): Promise<Project[]> {

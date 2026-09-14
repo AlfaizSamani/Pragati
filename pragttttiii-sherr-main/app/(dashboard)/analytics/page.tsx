@@ -20,6 +20,9 @@ import { ResponsiveContainer, PieChart as RePieChart, Pie, Cell, Tooltip, BarCha
 
 import { getPortfolioSummary, getStateRiskSummaries, getInterventionQueue } from '@/lib/api/portfolio';
 import { getProjects, getAllRiskAssessments, getAllAlerts } from '@/lib/api/projects';
+import { mockPortfolioSummary } from '@/data/mock/portfolio';
+import { mockProjects, mockRiskAssessments } from '@/data/mock/projects';
+import { mockInterventions, mockAlerts } from '@/data/mock/alerts-interventions';
 import { PortfolioSummary, Project, RiskAssessment, InterventionPriority, StateRiskSummary, Alert } from '@/lib/types';
 import { RISK_TIER_CONFIG, DOMINANT_RISK_CONFIG, PRIORITY_LEVEL_CONFIG } from '@/lib/constants';
 import { formatCurrency, formatLakhCrore } from '@/lib/utils';
@@ -32,14 +35,14 @@ function useMounted() {
 
 export default function AnalyticsPage() {
   const mounted = useMounted();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'portfolio' | 'risk' | 'sector' | 'cost_schedule' | 'interventions'>('portfolio');
 
-  const [summary, setSummary] = useState<PortfolioSummary | null>(null);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [riskAssessments, setRiskAssessments] = useState<RiskAssessment[]>([]);
-  const [interventions, setInterventions] = useState<InterventionPriority[]>([]);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [summary, setSummary] = useState<PortfolioSummary>(mockPortfolioSummary);
+  const [projects, setProjects] = useState<Project[]>(mockProjects);
+  const [riskAssessments, setRiskAssessments] = useState<RiskAssessment[]>(mockRiskAssessments);
+  const [interventions, setInterventions] = useState<InterventionPriority[]>(mockInterventions);
+  const [alerts, setAlerts] = useState<Alert[]>(mockAlerts);
 
   useEffect(() => {
     let active = true;

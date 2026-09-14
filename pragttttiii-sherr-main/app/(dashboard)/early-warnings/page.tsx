@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 
 import { getAllAlerts, getProjects } from '@/lib/api/projects';
+import { mockAlerts } from '@/data/mock/alerts-interventions';
+import { mockProjects } from '@/data/mock/projects';
 import { Alert, Project, RiskTier, DominantRiskType } from '@/lib/types';
 import { RISK_TIER_CONFIG, DOMINANT_RISK_CONFIG } from '@/lib/constants';
 import { formatMonth } from '@/lib/utils';
@@ -27,9 +29,9 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 
 export default function EarlyWarningsPage() {
-  const [loading, setLoading] = useState(true);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [alerts, setAlerts] = useState<Alert[]>(mockAlerts);
+  const [projects, setProjects] = useState<Project[]>(mockProjects);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
