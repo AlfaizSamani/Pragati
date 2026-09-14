@@ -3,13 +3,24 @@ import { mockProjects, mockRiskAssessments } from '@/data/mock/projects';
 import { mockAlerts, mockInterventions, mockBenchmarks } from '@/data/mock/alerts-interventions';
 import { mockSignals, mockEvidence } from '@/data/mock/signals-evidence';
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://pragati-wuh7.onrender.com').replace(/\/+$/, '');
+const RENDER_PROD_URL = 'https://pragati-wuh7.onrender.com';
 
-async function apiGet<T>(path: string, timeoutMs = 8000): Promise<T> {
+function getApiBase(): string {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (typeof window !== 'undefined') {
+    if (window.location.protocol === 'https:' && envUrl?.startsWith('http://localhost')) {
+      return RENDER_PROD_URL;
+    }
+  }
+  if (!envUrl) return RENDER_PROD_URL;
+  return envUrl.replace(/\/+$/, '');
+}
+
+async function fetchWithSignal<T>(url: string, timeoutMs: number): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(`${API_BASE}${path}`, {
+    const response = await fetch(url, {
       cache: 'no-store',
       signal: controller.signal,
     });
@@ -18,6 +29,23 @@ async function apiGet<T>(path: string, timeoutMs = 8000): Promise<T> {
     return (await response.json()) as T;
   } catch (err) {
     clearTimeout(timer);
+    throw err;
+  }
+}
+
+async function apiGet<T>(path: string, timeoutMs = 8000): Promise<T> {
+  const primary = getApiBase();
+  try {
+    return await fetchWithSignal<T>(`${primary}${path}`, timeoutMs);
+  } catch (err) {
+    if (primary !== RENDER_PROD_URL) {
+      console.warn(`[PRAGATI] Primary API ${primary} failed, connecting directly to Render backend...`);
+      try {
+        return await fetchWithSignal<T>(`${RENDER_PROD_URL}${path}`, timeoutMs);
+      } catch (fallbackErr) {
+        throw fallbackErr;
+      }
+    }
     throw err;
   }
 }

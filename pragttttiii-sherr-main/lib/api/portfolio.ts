@@ -3,24 +3,46 @@ import { mockPortfolioSummary, mockStateRiskSummaries } from '@/data/mock/portfo
 import { mockInterventions } from '@/data/mock/alerts-interventions';
 import { mockRiskAssessments } from '@/data/mock/projects';
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://pragati-wuh7.onrender.com').replace(/\/+$/, '');
+const RENDER_PROD_URL = 'https://pragati-wuh7.onrender.com';
 
-async function fetchWithTimeout(url: string, timeoutMs = 8000): Promise<Response> {
+function getApiBase(): string {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (typeof window !== 'undefined') {
+    if (window.location.protocol === 'https:' && envUrl?.startsWith('http://localhost')) {
+      return RENDER_PROD_URL;
+    }
+  }
+  if (!envUrl) return RENDER_PROD_URL;
+  return envUrl.replace(/\/+$/, '');
+}
+
+async function fetchWithTimeout(path: string, timeoutMs = 8000): Promise<Response> {
+  const primary = getApiBase();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
+    const res = await fetch(`${primary}${path}`, { cache: 'no-store', signal: controller.signal });
     clearTimeout(timer);
+    if (!res.ok && primary !== RENDER_PROD_URL) {
+      return await fetch(`${RENDER_PROD_URL}${path}`, { cache: 'no-store' });
+    }
     return res;
   } catch (err) {
     clearTimeout(timer);
+    if (primary !== RENDER_PROD_URL) {
+      try {
+        return await fetch(`${RENDER_PROD_URL}${path}`, { cache: 'no-store' });
+      } catch (fallbackErr) {
+        throw fallbackErr;
+      }
+    }
     throw err;
   }
 }
 
 export async function getPortfolioSummary(): Promise<PortfolioSummary> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE}/portfolio/summary`);
+    const res = await fetchWithTimeout('/portfolio/summary');
     if (!res.ok) throw new Error(`Status ${res.status}`);
     const raw = await res.json();
     const riskDistribution = {
@@ -51,7 +73,7 @@ export async function getPortfolioSummary(): Promise<PortfolioSummary> {
 
 export async function getStateRiskSummaries(): Promise<StateRiskSummary[]> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE}/state-summary`);
+    const res = await fetchWithTimeout('/state-summary');
     if (!res.ok) throw new Error(`Status ${res.status}`);
     const data = await res.json();
     if (Array.isArray(data) && data.length > 0) return data;
@@ -63,7 +85,7 @@ export async function getStateRiskSummaries(): Promise<StateRiskSummary[]> {
 
 export async function getInterventionQueue(): Promise<InterventionPriority[]> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE}/interventions`);
+    const res = await fetchWithTimeout('/interventions');
     if (!res.ok) throw new Error(`Status ${res.status}`);
     const records = (await res.json()) as Array<Record<string, unknown>>;
     if (!Array.isArray(records) || records.length === 0) return mockInterventions;
@@ -85,7 +107,7 @@ export async function getInterventionQueue(): Promise<InterventionPriority[]> {
 
 export async function getHighRiskAssessments(): Promise<RiskAssessment[]> {
   try {
-    const response = await fetchWithTimeout(`${API_BASE}/risk-assessments`);
+    const response = await fetchWithTimeout('/risk-assessments');
     if (!response.ok) throw new Error(`Status ${response.status}`);
     const assessments = (await response.json()) as RiskAssessment[];
     if (Array.isArray(assessments) && assessments.length > 0) {
