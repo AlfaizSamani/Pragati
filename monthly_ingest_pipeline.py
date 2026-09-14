@@ -13,11 +13,48 @@ import pandas as pd
 import numpy as np
 import joblib
 from parse_reports import parse_format_b
-import train_stage3 as s3
 
-PANEL_PATH = "panel_long_current.csv"          # the living, growing panel
+PANEL_PATH = "panel_long_13months.csv"          # the living, growing panel
 MODEL_BUNDLE_PATH = "model_and_calibrator_FINAL.joblib"   # FROZEN - never overwritten by this script
 FROZEN_TRAIN_CUTOFF = "2026-01"                 # the cutoff the current frozen model was trained on
+
+CUF_ONLY_NUM = [
+    'cost_original_n', 'cost_current_n', 'cum_exp_n', 'phys_prog_n',
+    'elapsed_months', 'planned_duration_months', 'time_elapsed_ratio',
+    'cost_utilization_ratio', 'cost_escalation_pct_to_date', 'progress_vs_time_gap',
+    'schedule_slip_months_to_date', 'is_overdue_original', 'is_overdue_current',
+    'has_been_cost_revised', 'has_been_schedule_revised',
+]
+ENHANCED_NUM = CUF_ONLY_NUM + [
+    'progress_velocity_1m', 'progress_velocity_3m', 'progress_accel_1m',
+    'expenditure_velocity_1m', 'cost_revision_count_to_date', 'schedule_revision_count_to_date',
+    'months_since_last_cost_revision', 'months_since_last_schedule_revision', 'obs_index',
+    'sector_peer_progress_percentile', 'sector_peer_divergence_percentile',
+    'agency_hist_overdue_rate', 'ministry_newly_reporting_flag',
+    'is_fiscal_year_end', 'stall_streak_months',
+]
+ENHANCED_CAT = ['sector', 'ministry', 'agency_capped', 'state_capped']
+
+TOP_AGENCIES = {
+    'Airport Authority of India [AAI]', 'East Central Railway [ECR] - I',
+    'East Coast Railway [ECoR] - II', 'Ministry of Coal',
+    'Ministry of Housing & Urban Affairs', 'Ministry of Petroleum & Natural Gas',
+    'MinistryofPetroleumNaturalGas', 'MoRTH', 'NHAI', 'NHIDCL',
+    'National Highways Authority of India [NHAI]', 'North Western Railway [NWR]',
+    'Oil and Natural Gas Corporation Limited [ONGC]',
+    'Power Grid Corporation of India Limited [POWERGRID]', 'RVNL - II',
+    'South Central Railway [SCR] - II', 'South Eastern Coalfields Limited [SECL]',
+    'South Western Railway [SWR] - II', 'Steel Authority of India Limited [SAIL]',
+    'Western Coalfields Limited [WCL]',
+}
+
+TOP_STATES = {
+    'Andhra Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Delhi', 'GOA',
+    'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jammu and\nKashmir', 'Jharkhand',
+    'Karnataka', 'Kerala', 'LADAKH', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
+    'Odisha', 'Punjab', 'Rajasthan', 'Tamil Nadu', 'Telangana', 'Uttar Pradesh',
+    'Uttarakhand', 'West Bengal',
+}
 
 def ingest_new_month(pdf_path: str, month_label: str) -> dict:
     """
@@ -54,10 +91,8 @@ def ingest_new_month(pdf_path: str, month_label: str) -> dict:
     bundle = joblib.load(MODEL_BUNDLE_PATH)
     model, platt = bundle['model'], bundle['calibrator']
 
-    locked_full, _ = s3.load_and_filter(train_cutoff=FROZEN_TRAIN_CUTOFF)
-    train_only = locked_full[locked_full['report_month'] <= FROZEN_TRAIN_CUTOFF]
-    agency_top = set(train_only['agency'].value_counts().nlargest(20).index)
-    state_top = set(train_only['state'].value_counts().nlargest(25).index)
+    agency_top = TOP_AGENCIES
+    state_top = TOP_STATES
 
     full = pd.read_csv("feature_table_current.csv", low_memory=False)
     month_rows = full[full['report_month'] == month_label].copy()
@@ -70,8 +105,8 @@ def ingest_new_month(pdf_path: str, month_label: str) -> dict:
     eligible = month_rows[(month_rows['obs_index'] >= 3) & (month_rows['dq_flag_any'] == 0)].copy()
     cold_start = month_rows[month_rows['obs_index'] < 3].copy()
 
-    X = eligible[s3.ENHANCED_NUM + s3.ENHANCED_CAT].copy()
-    for c in s3.ENHANCED_CAT:
+    X = eligible[ENHANCED_NUM + ENHANCED_CAT].copy()
+    for c in ENHANCED_CAT:
         X[c] = X[c].astype('category')
     raw = model.predict_proba(X)[:, 1]
     eligible['risk_score'] = 100 * platt.predict_proba(raw.reshape(-1, 1))[:, 1]
