@@ -1,6 +1,9 @@
 import type { Project, RiskAssessment, ProjectMonthSnapshot, PredictiveSignal, Evidence, Alert, PeerBenchmark, InterventionPriority, ProjectFilters } from '@/lib/types';
+import { mockProjects, mockRiskAssessments } from '@/data/mock/projects';
+import { mockAlerts, mockInterventions, mockBenchmarks } from '@/data/mock/alerts-interventions';
+import { mockSignals, mockEvidence } from '@/data/mock/signals-evidence';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://pragati-wuh7.onrender.com').replace(/\/+$/, '');
 
 async function apiGet<T>(path: string): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, { cache: 'no-store' });
@@ -11,9 +14,12 @@ async function apiGet<T>(path: string): Promise<T> {
 export async function getProjects(filters?: ProjectFilters): Promise<Project[]> {
   try {
     const projects = await apiGet<Project[]>('/projects');
-    return applyFilters(projects, filters);
+    if (projects && projects.length > 0) {
+      return applyFilters(projects, filters);
+    }
+    return applyFilters(mockProjects, filters);
   } catch {
-    throw new Error('Live project API is unavailable. Start api_service.py.');
+    return applyFilters(mockProjects, filters);
   }
 }
 
@@ -34,58 +40,100 @@ function applyFilters(projects: Project[], filters?: ProjectFilters): Project[] 
 
 export async function getProject(id: string): Promise<Project | undefined> {
   try {
-    return await apiGet<Project>(`/projects/${encodeURIComponent(id)}`);
+    const p = await apiGet<Project>(`/projects/${encodeURIComponent(id)}`);
+    return p || mockProjects.find(m => m.id === id);
   } catch {
-    return undefined;
+    return mockProjects.find(m => m.id === id);
   }
 }
 
 export async function getProjectRisk(projectId: string): Promise<RiskAssessment | undefined> {
   try {
     const assessments = await apiGet<RiskAssessment[]>('/risk-assessments');
-    return assessments.find(assessment => assessment.projectId === projectId);
+    return assessments.find(assessment => assessment.projectId === projectId) || mockRiskAssessments.find(r => r.projectId === projectId);
   } catch {
-    return undefined;
+    return mockRiskAssessments.find(r => r.projectId === projectId);
   }
 }
 
 export async function getAllRiskAssessments(): Promise<RiskAssessment[]> {
   try {
-    return await apiGet<RiskAssessment[]>('/risk-assessments');
+    const assessments = await apiGet<RiskAssessment[]>('/risk-assessments');
+    if (assessments && assessments.length > 0) return assessments;
+    return mockRiskAssessments;
+  } catch {
+    return mockRiskAssessments;
+  }
+}
+
+export async function getProjectHistory(projectId: string): Promise<ProjectMonthSnapshot[]> {
+  try {
+    return await apiGet<ProjectMonthSnapshot[]>(`/projects/${encodeURIComponent(projectId)}/history`);
   } catch {
     return [];
   }
 }
 
-export async function getProjectHistory(projectId: string): Promise<ProjectMonthSnapshot[]> {
-  try { return await apiGet<ProjectMonthSnapshot[]>(`/projects/${encodeURIComponent(projectId)}/history`); } catch { return []; }
-}
-
 export async function getProjectSignals(projectId: string): Promise<PredictiveSignal[]> {
-  try { return await apiGet<PredictiveSignal[]>(`/projects/${encodeURIComponent(projectId)}/signals`); } catch { return []; }
+  try {
+    const signals = await apiGet<PredictiveSignal[]>(`/projects/${encodeURIComponent(projectId)}/signals`);
+    if (signals && signals.length > 0) return signals;
+    return mockSignals[projectId] || [];
+  } catch {
+    return mockSignals[projectId] || [];
+  }
 }
 
 export async function getProjectEvidence(projectId: string): Promise<Evidence[]> {
-  try { return await apiGet<Evidence[]>(`/projects/${encodeURIComponent(projectId)}/evidence`); } catch { return []; }
+  try {
+    const evidence = await apiGet<Evidence[]>(`/projects/${encodeURIComponent(projectId)}/evidence`);
+    if (evidence && evidence.length > 0) return evidence;
+    return mockEvidence[projectId] || [];
+  } catch {
+    return mockEvidence[projectId] || [];
+  }
 }
 
 export async function getProjectAlerts(projectId: string): Promise<Alert[]> {
-  try { return await apiGet<Alert[]>(`/projects/${encodeURIComponent(projectId)}/alerts`); } catch { return []; }
+  try {
+    const alerts = await apiGet<Alert[]>(`/projects/${encodeURIComponent(projectId)}/alerts`);
+    if (alerts && alerts.length > 0) return alerts;
+    return mockAlerts.filter(a => a.projectId === projectId);
+  } catch {
+    return mockAlerts.filter(a => a.projectId === projectId);
+  }
 }
 
 export async function getProjectBenchmark(projectId: string): Promise<PeerBenchmark | undefined> {
-  try { return await apiGet<PeerBenchmark>(`/projects/${encodeURIComponent(projectId)}/benchmark`); } catch { return undefined; }
+  try {
+    return (await apiGet<PeerBenchmark>(`/projects/${encodeURIComponent(projectId)}/benchmark`)) || mockBenchmarks[projectId];
+  } catch {
+    return mockBenchmarks[projectId];
+  }
 }
 
 export async function getProjectIntervention(projectId: string): Promise<InterventionPriority | undefined> {
-  try { return await apiGet<InterventionPriority>(`/projects/${encodeURIComponent(projectId)}/intervention`); } catch { return undefined; }
+  try {
+    return (await apiGet<InterventionPriority>(`/projects/${encodeURIComponent(projectId)}/intervention`)) || mockInterventions.find(i => i.projectId === projectId);
+  } catch {
+    return mockInterventions.find(i => i.projectId === projectId);
+  }
 }
 
 export async function getAllAlerts(): Promise<Alert[]> {
-  try { return await apiGet<Alert[]>('/alerts'); } catch { return []; }
+  try {
+    const alerts = await apiGet<Alert[]>('/alerts');
+    if (alerts && alerts.length > 0) return alerts;
+    return mockAlerts;
+  } catch {
+    return mockAlerts;
+  }
 }
 
 export async function getAllProjectTrajectories(): Promise<Record<string, ProjectMonthSnapshot[]>> {
-  try { return await apiGet<Record<string, ProjectMonthSnapshot[]>>('/trajectories'); } catch { return {}; }
+  try {
+    return await apiGet<Record<string, ProjectMonthSnapshot[]>>('/trajectories');
+  } catch {
+    return {};
+  }
 }
-
