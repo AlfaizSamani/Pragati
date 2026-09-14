@@ -35,18 +35,30 @@ export default function InterventionPriorityPage() {
   const loadData = () => {
     setLoading(true);
     setError(null);
-    Promise.all([
+    Promise.allSettled([
       getInterventionQueue(),
       getProjects(),
       getAllRiskAssessments()
-    ]).then(([intervData, projData, riskData]) => {
-      setInterventions(intervData);
-      setProjects(projData);
-      setRiskAssessments(riskData);
-      setLoading(false);
-    }).catch(err => {
-      console.error('[PRAGATI] Intervention Priority load failed:', err);
-      setError(`Failed to load data: ${err instanceof Error ? err.message : String(err)}`);
+    ]).then(([intervRes, projRes, riskRes]) => {
+      let loadedAny = false;
+      if (intervRes.status === 'fulfilled') {
+        setInterventions(intervRes.value);
+        loadedAny = true;
+      }
+      if (projRes.status === 'fulfilled') {
+        setProjects(projRes.value);
+        loadedAny = true;
+      }
+      if (riskRes.status === 'fulfilled') {
+        setRiskAssessments(riskRes.value);
+        loadedAny = true;
+      }
+
+      if (!loadedAny) {
+        const firstErr = [intervRes, projRes, riskRes].find(r => r.status === 'rejected');
+        const reason = firstErr && firstErr.status === 'rejected' ? firstErr.reason : 'Connection failed';
+        setError(`Failed to load data: ${reason instanceof Error ? reason.message : String(reason)}`);
+      }
       setLoading(false);
     });
   };

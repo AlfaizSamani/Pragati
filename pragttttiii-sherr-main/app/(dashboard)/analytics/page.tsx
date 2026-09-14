@@ -45,22 +45,40 @@ export default function AnalyticsPage() {
   const loadData = () => {
     setLoading(true);
     setError(null);
-    Promise.all([
+    Promise.allSettled([
       getPortfolioSummary(),
       getProjects(),
       getAllRiskAssessments(),
       getInterventionQueue(),
       getAllAlerts()
-    ]).then(([sumData, projData, riskData, intervData, alertData]) => {
-      setSummary(sumData);
-      setProjects(projData);
-      setRiskAssessments(riskData);
-      setInterventions(intervData);
-      setAlerts(alertData);
-      setLoading(false);
-    }).catch(err => {
-      console.error('[PRAGATI] Analytics load failed:', err);
-      setError(`Failed to load data: ${err instanceof Error ? err.message : String(err)}`);
+    ]).then(([sumRes, projRes, riskRes, intervRes, alertRes]) => {
+      let loadedAny = false;
+      if (sumRes.status === 'fulfilled') {
+        setSummary(sumRes.value);
+        loadedAny = true;
+      }
+      if (projRes.status === 'fulfilled') {
+        setProjects(projRes.value);
+        loadedAny = true;
+      }
+      if (riskRes.status === 'fulfilled') {
+        setRiskAssessments(riskRes.value);
+        loadedAny = true;
+      }
+      if (intervRes.status === 'fulfilled') {
+        setInterventions(intervRes.value);
+        loadedAny = true;
+      }
+      if (alertRes.status === 'fulfilled') {
+        setAlerts(alertRes.value);
+        loadedAny = true;
+      }
+
+      if (!loadedAny) {
+        const firstErr = [sumRes, projRes, riskRes, intervRes, alertRes].find(r => r.status === 'rejected');
+        const reason = firstErr && firstErr.status === 'rejected' ? firstErr.reason : 'Connection failed';
+        setError(`Failed to load data: ${reason instanceof Error ? reason.message : String(reason)}`);
+      }
       setLoading(false);
     });
   };

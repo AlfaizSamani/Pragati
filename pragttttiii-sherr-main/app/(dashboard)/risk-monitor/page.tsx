@@ -36,20 +36,35 @@ export default function RiskMonitorPage() {
   const loadData = () => {
     setLoading(true);
     setError(null);
-    Promise.all([
+    Promise.allSettled([
       getPortfolioSummary(),
       getProjects(),
       getAllRiskAssessments(),
       getAllProjectTrajectories()
-    ]).then(([sumData, projData, riskData, trajData]) => {
-      setSummary(sumData);
-      setProjects(projData);
-      setRiskAssessments(riskData);
-      setTrajectories(trajData);
-      setLoading(false);
-    }).catch(err => {
-      console.error('[PRAGATI] Risk Monitor load failed:', err);
-      setError(`Failed to load data: ${err instanceof Error ? err.message : String(err)}`);
+    ]).then(([sumRes, projRes, riskRes, trajRes]) => {
+      let loadedAny = false;
+      if (sumRes.status === 'fulfilled') {
+        setSummary(sumRes.value);
+        loadedAny = true;
+      }
+      if (projRes.status === 'fulfilled') {
+        setProjects(projRes.value);
+        loadedAny = true;
+      }
+      if (riskRes.status === 'fulfilled') {
+        setRiskAssessments(riskRes.value);
+        loadedAny = true;
+      }
+      if (trajRes.status === 'fulfilled') {
+        setTrajectories(trajRes.value);
+        loadedAny = true;
+      }
+
+      if (!loadedAny) {
+        const firstErr = [sumRes, projRes, riskRes, trajRes].find(r => r.status === 'rejected');
+        const reason = firstErr && firstErr.status === 'rejected' ? firstErr.reason : 'Connection failed';
+        setError(`Failed to load data: ${reason instanceof Error ? reason.message : String(reason)}`);
+      }
       setLoading(false);
     });
   };

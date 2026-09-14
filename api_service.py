@@ -62,6 +62,23 @@ app.add_middleware(
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
+@app.get("/")
+@app.head("/")
+def root():
+    return {
+        "status": "ok",
+        "service": "PAIMANA Sentinel API",
+        "version": "v3-final",
+        "description": "Predictive infrastructure risk scoring - MoSPI/IPMD",
+    }
+
+
+@app.get("/health")
+@app.head("/health")
+def health():
+    return {"status": "healthy"}
+
+
 def _extract_bearer_token(request: Request) -> Optional[str]:
     auth_header = request.headers.get("authorization", "")
     if auth_header.lower().startswith("bearer "):
@@ -349,7 +366,25 @@ def alerts(month: str = "2026-06"):
     df = _load_scored(month)
     output = []
     for _, row in df.iterrows():
-        output.extend(project_alerts(str(row.get("canonical_id")), month))
+        record = _project_record(row, month)
+        canonical_id = str(row.get("canonical_id"))
+        for alert_type, value, message in [
+            ("cost_escalation", record["costEscalationPct"], "Cost escalation signal detected."),
+            ("schedule_delay", record["scheduleSlipMonths"], "Schedule slip signal detected."),
+            ("progress_stall", record["stallStreakMonths"], "Progress stall signal detected."),
+        ]:
+            if value > 0:
+                output.append({
+                    "id": f"ALT-{canonical_id}-{alert_type}",
+                    "projectId": canonical_id,
+                    "type": alert_type,
+                    "riskTier": record["riskTier"],
+                    "message": message,
+                    "firstRaisedMonth": month,
+                    "persistenceMonths": int(value),
+                    "isActive": True,
+                    "reportingMonth": month,
+                })
     return output
 
 

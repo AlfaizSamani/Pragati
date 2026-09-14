@@ -50,22 +50,22 @@ export default function ProjectsPage() {
   const loadData = () => {
     setLoading(true);
     setError(null);
-    Promise.all([
+    Promise.allSettled([
       getProjects(),
       getAllRiskAssessments(),
       getInterventionQueue()
-    ])
-      .then(([projData, riskData, intervData]) => {
-        setProjects(projData);
-        setRiskAssessments(riskData);
-        setInterventions(intervData);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error('[PRAGATI] Page load failed:', err);
-        setError(`Failed to load data from API: ${err instanceof Error ? err.message : String(err)}`);
-        setLoading(false);
-      });
+    ]).then(([projResult, riskResult, intervResult]) => {
+      const errors: string[] = [];
+      if (projResult.status === 'fulfilled') setProjects(projResult.value);
+      else errors.push(`Projects: ${projResult.reason?.message || 'Failed'}`);
+      if (riskResult.status === 'fulfilled') setRiskAssessments(riskResult.value);
+      else errors.push(`Risk: ${riskResult.reason?.message || 'Failed'}`);
+      if (intervResult.status === 'fulfilled') setInterventions(intervResult.value);
+      if (projResult.status === 'rejected') {
+        setError(errors.join(' | '));
+      }
+      setLoading(false);
+    });
   };
 
   useEffect(() => {

@@ -42,16 +42,26 @@ export default function EarlyWarningsPage() {
   const loadData = () => {
     setLoading(true);
     setError(null);
-    Promise.all([
+    Promise.allSettled([
       getAllAlerts(),
       getProjects()
-    ]).then(([alertsData, projectsData]) => {
-      setAlerts(alertsData);
-      setProjects(projectsData);
-      setLoading(false);
-    }).catch(err => {
-      console.error('[PRAGATI] Early Warnings load failed:', err);
-      setError(`Failed to load data: ${err instanceof Error ? err.message : String(err)}`);
+    ]).then(([alertsResult, projectsResult]) => {
+      const errors: string[] = [];
+      if (alertsResult.status === 'fulfilled') {
+        setAlerts(alertsResult.value);
+      } else {
+        console.error('[PRAGATI] Alerts failed:', alertsResult.reason);
+        errors.push(`Alerts: ${alertsResult.reason?.message || 'Failed'}`);
+      }
+      if (projectsResult.status === 'fulfilled') {
+        setProjects(projectsResult.value);
+      } else {
+        console.error('[PRAGATI] Projects failed:', projectsResult.reason);
+        errors.push(`Projects: ${projectsResult.reason?.message || 'Failed'}`);
+      }
+      if (alertsResult.status === 'rejected' && projectsResult.status === 'rejected') {
+        setError(errors.join(' | '));
+      }
       setLoading(false);
     });
   };
