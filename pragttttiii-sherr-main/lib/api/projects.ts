@@ -33,16 +33,19 @@ async function fetchWithSignal<T>(url: string, timeoutMs: number): Promise<T> {
   }
 }
 
-async function apiGet<T>(path: string, timeoutMs = 8000): Promise<T> {
+async function apiGet<T>(path: string, timeoutMs = 30000): Promise<T> {
   const primary = getApiBase();
   try {
+    console.log(`[PRAGATI] Fetching ${primary}${path} (timeout: ${timeoutMs}ms)`);
     return await fetchWithSignal<T>(`${primary}${path}`, timeoutMs);
   } catch (err) {
+    console.error(`[PRAGATI] API call failed: ${primary}${path}`, err);
     if (primary !== RENDER_PROD_URL) {
       console.warn(`[PRAGATI] Primary API ${primary} failed, connecting directly to Render backend...`);
       try {
         return await fetchWithSignal<T>(`${RENDER_PROD_URL}${path}`, timeoutMs);
       } catch (fallbackErr) {
+        console.error(`[PRAGATI] Fallback to Render also failed: ${RENDER_PROD_URL}${path}`, fallbackErr);
         throw fallbackErr;
       }
     }
@@ -52,12 +55,15 @@ async function apiGet<T>(path: string, timeoutMs = 8000): Promise<T> {
 
 export async function getProjects(filters?: ProjectFilters): Promise<Project[]> {
   try {
-    const projects = await apiGet<Project[]>('/projects');
+    const projects = await apiGet<Project[]>('/projects', 45000);
+    console.log(`[PRAGATI] Loaded ${projects?.length ?? 0} projects from API`);
     if (projects && projects.length > 0) {
       return applyFilters(projects, filters);
     }
+    console.warn('[PRAGATI] API returned empty projects, using mock data');
     return applyFilters(mockProjects, filters);
-  } catch {
+  } catch (err) {
+    console.error('[PRAGATI] Failed to load projects from API, falling back to mock data:', err);
     return applyFilters(mockProjects, filters);
   }
 }
@@ -81,7 +87,8 @@ export async function getProject(id: string): Promise<Project | undefined> {
   try {
     const p = await apiGet<Project>(`/projects/${encodeURIComponent(id)}`);
     return p || mockProjects.find(m => m.id === id);
-  } catch {
+  } catch (err) {
+    console.error(`[PRAGATI] Failed to load project ${id}:`, err);
     return mockProjects.find(m => m.id === id);
   }
 }
@@ -90,7 +97,8 @@ export async function getProjectRisk(projectId: string): Promise<RiskAssessment 
   try {
     const assessments = await apiGet<RiskAssessment[]>('/risk-assessments');
     return assessments.find(assessment => assessment.projectId === projectId) || mockRiskAssessments.find(r => r.projectId === projectId);
-  } catch {
+  } catch (err) {
+    console.error(`[PRAGATI] Failed to load risk for project ${projectId}:`, err);
     return mockRiskAssessments.find(r => r.projectId === projectId);
   }
 }
@@ -98,9 +106,11 @@ export async function getProjectRisk(projectId: string): Promise<RiskAssessment 
 export async function getAllRiskAssessments(): Promise<RiskAssessment[]> {
   try {
     const assessments = await apiGet<RiskAssessment[]>('/risk-assessments');
+    console.log(`[PRAGATI] Loaded ${assessments?.length ?? 0} risk assessments from API`);
     if (assessments && assessments.length > 0) return assessments;
     return mockRiskAssessments;
-  } catch {
+  } catch (err) {
+    console.error('[PRAGATI] Failed to load risk assessments:', err);
     return mockRiskAssessments;
   }
 }
@@ -108,7 +118,8 @@ export async function getAllRiskAssessments(): Promise<RiskAssessment[]> {
 export async function getProjectHistory(projectId: string): Promise<ProjectMonthSnapshot[]> {
   try {
     return await apiGet<ProjectMonthSnapshot[]>(`/projects/${encodeURIComponent(projectId)}/history`);
-  } catch {
+  } catch (err) {
+    console.error(`[PRAGATI] Failed to load history for ${projectId}:`, err);
     return [];
   }
 }
@@ -118,7 +129,8 @@ export async function getProjectSignals(projectId: string): Promise<PredictiveSi
     const signals = await apiGet<PredictiveSignal[]>(`/projects/${encodeURIComponent(projectId)}/signals`);
     if (signals && signals.length > 0) return signals;
     return mockSignals[projectId] || [];
-  } catch {
+  } catch (err) {
+    console.error(`[PRAGATI] Failed to load signals for ${projectId}:`, err);
     return mockSignals[projectId] || [];
   }
 }
@@ -128,7 +140,8 @@ export async function getProjectEvidence(projectId: string): Promise<Evidence[]>
     const evidence = await apiGet<Evidence[]>(`/projects/${encodeURIComponent(projectId)}/evidence`);
     if (evidence && evidence.length > 0) return evidence;
     return mockEvidence[projectId] || [];
-  } catch {
+  } catch (err) {
+    console.error(`[PRAGATI] Failed to load evidence for ${projectId}:`, err);
     return mockEvidence[projectId] || [];
   }
 }
@@ -138,7 +151,8 @@ export async function getProjectAlerts(projectId: string): Promise<Alert[]> {
     const alerts = await apiGet<Alert[]>(`/projects/${encodeURIComponent(projectId)}/alerts`);
     if (alerts && alerts.length > 0) return alerts;
     return mockAlerts.filter(a => a.projectId === projectId);
-  } catch {
+  } catch (err) {
+    console.error(`[PRAGATI] Failed to load alerts for ${projectId}:`, err);
     return mockAlerts.filter(a => a.projectId === projectId);
   }
 }
@@ -146,7 +160,8 @@ export async function getProjectAlerts(projectId: string): Promise<Alert[]> {
 export async function getProjectBenchmark(projectId: string): Promise<PeerBenchmark | undefined> {
   try {
     return (await apiGet<PeerBenchmark>(`/projects/${encodeURIComponent(projectId)}/benchmark`)) || mockBenchmarks[projectId];
-  } catch {
+  } catch (err) {
+    console.error(`[PRAGATI] Failed to load benchmark for ${projectId}:`, err);
     return mockBenchmarks[projectId];
   }
 }
@@ -154,17 +169,20 @@ export async function getProjectBenchmark(projectId: string): Promise<PeerBenchm
 export async function getProjectIntervention(projectId: string): Promise<InterventionPriority | undefined> {
   try {
     return (await apiGet<InterventionPriority>(`/projects/${encodeURIComponent(projectId)}/intervention`)) || mockInterventions.find(i => i.projectId === projectId);
-  } catch {
+  } catch (err) {
+    console.error(`[PRAGATI] Failed to load intervention for ${projectId}:`, err);
     return mockInterventions.find(i => i.projectId === projectId);
   }
 }
 
 export async function getAllAlerts(): Promise<Alert[]> {
   try {
-    const alerts = await apiGet<Alert[]>('/alerts');
+    const alerts = await apiGet<Alert[]>('/alerts', 45000);
+    console.log(`[PRAGATI] Loaded ${alerts?.length ?? 0} alerts from API`);
     if (alerts && alerts.length > 0) return alerts;
     return mockAlerts;
-  } catch {
+  } catch (err) {
+    console.error('[PRAGATI] Failed to load alerts:', err);
     return mockAlerts;
   }
 }
@@ -172,7 +190,8 @@ export async function getAllAlerts(): Promise<Alert[]> {
 export async function getAllProjectTrajectories(): Promise<Record<string, ProjectMonthSnapshot[]>> {
   try {
     return await apiGet<Record<string, ProjectMonthSnapshot[]>>('/trajectories');
-  } catch {
+  } catch (err) {
+    console.error('[PRAGATI] Failed to load trajectories:', err);
     return {};
   }
 }

@@ -16,11 +16,12 @@ function getApiBase(): string {
   return envUrl.replace(/\/+$/, '');
 }
 
-async function fetchWithTimeout(path: string, timeoutMs = 8000): Promise<Response> {
+async function fetchWithTimeout(path: string, timeoutMs = 30000): Promise<Response> {
   const primary = getApiBase();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
+    console.log(`[PRAGATI] Fetching ${primary}${path} (timeout: ${timeoutMs}ms)`);
     const res = await fetch(`${primary}${path}`, { cache: 'no-store', signal: controller.signal });
     clearTimeout(timer);
     if (!res.ok && primary !== RENDER_PROD_URL) {
@@ -29,10 +30,12 @@ async function fetchWithTimeout(path: string, timeoutMs = 8000): Promise<Respons
     return res;
   } catch (err) {
     clearTimeout(timer);
+    console.error(`[PRAGATI] Fetch failed: ${primary}${path}`, err);
     if (primary !== RENDER_PROD_URL) {
       try {
         return await fetch(`${RENDER_PROD_URL}${path}`, { cache: 'no-store' });
       } catch (fallbackErr) {
+        console.error(`[PRAGATI] Fallback to Render also failed: ${RENDER_PROD_URL}${path}`, fallbackErr);
         throw fallbackErr;
       }
     }
@@ -66,7 +69,8 @@ export async function getPortfolioSummary(): Promise<PortfolioSummary> {
       ministryBreakdown: raw.ministry_breakdown || [],
       reportingMonth: raw.month,
     };
-  } catch {
+  } catch (err) {
+    console.error('[PRAGATI] Failed to load portfolio summary:', err);
     return mockPortfolioSummary;
   }
 }
@@ -78,7 +82,8 @@ export async function getStateRiskSummaries(): Promise<StateRiskSummary[]> {
     const data = await res.json();
     if (Array.isArray(data) && data.length > 0) return data;
     return mockStateRiskSummaries;
-  } catch {
+  } catch (err) {
+    console.error('[PRAGATI] Failed to load state risk summaries:', err);
     return mockStateRiskSummaries;
   }
 }
@@ -100,7 +105,8 @@ export async function getInterventionQueue(): Promise<InterventionPriority[]> {
       reviewCategory: Number(record.priorityScore || 0) >= 80 ? 'immediate_review' : Number(record.priorityScore || 0) >= 60 ? 'scheduled_review' : Number(record.priorityScore || 0) >= 40 ? 'monitoring' : 'watch',
       recommendedAction: String(record.recommendedReview || 'Review current project evidence.'),
     }));
-  } catch {
+  } catch (err) {
+    console.error('[PRAGATI] Failed to load intervention queue:', err);
     return mockInterventions;
   }
 }
@@ -114,7 +120,8 @@ export async function getHighRiskAssessments(): Promise<RiskAssessment[]> {
       return assessments.filter(r => r.riskTier === 'high' || r.riskTier === 'critical').sort((a, b) => b.riskScore - a.riskScore);
     }
     return mockRiskAssessments.filter(r => r.riskTier === 'high' || r.riskTier === 'critical').sort((a, b) => b.riskScore - a.riskScore);
-  } catch {
+  } catch (err) {
+    console.error('[PRAGATI] Failed to load high risk assessments:', err);
     return mockRiskAssessments.filter(r => r.riskTier === 'high' || r.riskTier === 'critical').sort((a, b) => b.riskScore - a.riskScore);
   }
 }

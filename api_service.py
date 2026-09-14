@@ -513,6 +513,14 @@ def llm_status():
         runtime = False
     return {"configured": LLM_MODEL_PATH.exists(), "runtime_available": runtime, "model": str(LLM_MODEL_PATH)}
 
+@app.get("/")
+def root():
+    return {"service": "PAIMANA Sentinel API", "status": "ok", "version": "v3-final"}
+
+@app.head("/")
+def root_head():
+    return {}
+
 @app.get("/health")
 def health():
     return dict(status="ok", model_frozen=True, retrain_trigger="manual/scheduled only - see monthly_ingest_pipeline.retrain_model_if_scheduled")
