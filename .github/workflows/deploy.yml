@@ -56,10 +56,11 @@ jobs:
           VERCEL_DEPLOY_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
         run: |
           if [ -z "$VERCEL_DEPLOY_HOOK" ]; then
-            echo "::notice::Vercel deployment skipped; add the project's production Deploy Hook URL as the VERCEL_DEPLOY_HOOK repository secret."
-            exit 0
+            echo "::error::Vercel deployment was not triggered. Create a production Deploy Hook in Vercel and save its URL as the VERCEL_DEPLOY_HOOK Actions secret."
+            exit 1
           fi
-          curl --fail --silent --show-error --request POST "$VERCEL_DEPLOY_HOOK"
+          curl --fail --silent --show-error --output /tmp/vercel-deploy-response.json --request POST "$VERCEL_DEPLOY_HOOK"
+          cat /tmp/vercel-deploy-response.json
 
   api-image:
     name: Build and publish API container
