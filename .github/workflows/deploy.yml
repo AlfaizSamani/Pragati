@@ -51,21 +51,15 @@ jobs:
         working-directory: .gov
         run: npm run build
 
-      - name: Deploy frontend to Vercel production
+      - name: Trigger Vercel production deployment
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          VERCEL_DEPLOY_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
         run: |
-          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
-            echo "::notice::Vercel deployment skipped; configure VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_PROJECT_ID in repository settings."
+          if [ -z "$VERCEL_DEPLOY_HOOK" ]; then
+            echo "::notice::Vercel deployment skipped; add the project's production Deploy Hook URL as the VERCEL_DEPLOY_HOOK repository secret."
             exit 0
           fi
-          npm install --global vercel@latest
-          vercel link --yes --scope "$VERCEL_ORG_ID" --project "$VERCEL_PROJECT_ID" --token "$VERCEL_TOKEN"
-          vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
-          vercel build --prod --token "$VERCEL_TOKEN"
-          vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN"
+          curl --fail --silent --show-error --request POST "$VERCEL_DEPLOY_HOOK"
 
   api-image:
     name: Build and publish API container
