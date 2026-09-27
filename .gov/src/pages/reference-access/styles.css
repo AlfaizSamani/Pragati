@@ -880,7 +880,16 @@ h1, h2, h3, h4, p { margin: 0; }
 
 /* Keep the imported reference layout authoritative inside the host app. */
 .reference-access .page {
+  display: grid;
   grid-template-columns: 461px minmax(0, 1fr) 320px;
+  min-height: 884px;
+  align-items: stretch;
+}
+
+.reference-access .sec {
+  display: block;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .reference-access .grid2 {
