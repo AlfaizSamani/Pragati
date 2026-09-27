@@ -6,14 +6,11 @@ import { HeroBanner } from "../components/intelligence/HeroBanner";
 import { TryTheseQuestions } from "../components/intelligence/TryTheseQuestions";
 import { ConversationSection } from "../components/intelligence/ConversationSection";
 import { RiskAnalyticsSection } from "../components/intelligence/RiskAnalyticsSection";
-import { Footer } from "../components/intelligence/Footer";
 import { api } from "../services/apiClient";
-import indiaGateUrl from "../assets/india-gate.jpg";
 
 export default function Intelligence() {
   const [projects, setProjects] = useState([]);
-  const [question, setQuestion] = useState("Which projects need immediate attention?");
-  const [answer, setAnswer] = useState(null);
+  const [messages, setMessages] = useState([]);
   const [isThinking, setIsThinking] = useState(false);
   const [error, setError] = useState("");
 
@@ -30,17 +27,37 @@ export default function Intelligence() {
       .catch((requestError) => setError(requestError.message));
   }, []);
 
-  async function submitQuestion(nextQuestion = question) {
+  async function submitQuestion(nextQuestion) {
     const normalizedQuestion = nextQuestion.trim();
     if (!normalizedQuestion || isThinking) return;
-    setQuestion(nextQuestion);
     setError("");
     setIsThinking(true);
+
+    const requestId = `query-${Date.now()}`;
+    const assistantMessageId = `assistant-${requestId}`;
+    setMessages((currentMessages) => [
+      ...currentMessages,
+      { id: `user-${requestId}`, role: "user", content: normalizedQuestion },
+      { id: assistantMessageId, role: "assistant", content: "", pending: true },
+    ]);
+
     try {
       const result = await api.intelligence({ id: `query-${Date.now()}`, question: normalizedQuestion, category: "general" }, import.meta.env.VITE_REPORTING_MONTH || "2026-06");
-      setAnswer(result);
+      const evidence = (result.sections || [])
+        .filter((section) => section.type === "evidence")
+        .flatMap((section) => section.data || []);
+      setMessages((currentMessages) => currentMessages.map((message) => (
+        message.id === assistantMessageId
+          ? { ...message, content: result.summary || "No grounded response was returned.", evidence, pending: false }
+          : message
+      )));
     } catch (requestError) {
       setError(requestError.message);
+      setMessages((currentMessages) => currentMessages.map((message) => (
+        message.id === assistantMessageId
+          ? { ...message, content: "I couldn't complete that request. Please try again.", pending: false, failed: true }
+          : message
+      )));
     } finally {
       setIsThinking(false);
     }
@@ -57,7 +74,7 @@ export default function Intelligence() {
               <div className="h-full min-h-0 overflow-hidden pr-1">
                 <TryTheseQuestions onSelect={submitQuestion} />
               </div>
-              <ConversationSection projectRecords={projects} question={question} answer={answer} isThinking={isThinking} onSubmit={submitQuestion} />
+              <ConversationSection projectRecords={projects} messages={messages} isThinking={isThinking} onSubmit={submitQuestion} />
               <div className="h-full min-h-0 overflow-hidden pr-1">
                 <RiskAnalyticsSection />
               </div>

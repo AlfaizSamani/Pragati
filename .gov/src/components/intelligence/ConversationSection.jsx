@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-export const ConversationSection = ({ projectRecords = [], question, answer, isThinking = false, onSubmit }) => {
-  const [draft, setDraft] = useState(question || '');
+export const ConversationSection = ({ projectRecords = [], messages = [], isThinking = false, onSubmit }) => {
+  const [draft, setDraft] = useState('');
   const projects = projectRecords;
   const responseScrollerRef = useRef(null);
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
@@ -17,134 +17,77 @@ export const ConversationSection = ({ projectRecords = [], question, answer, isT
   useEffect(() => {
     const scroller = responseScrollerRef.current;
     if (scroller && stickToLatestRef.current) scroller.scrollTop = scroller.scrollHeight;
-  }, [question, answer, isThinking]);
+  }, [messages, isThinking]);
 
   return (
     <div className="w-full min-w-0 h-full flex flex-col min-h-0 gap-2 overflow-hidden">
-      {/* User Prompt Card */}
-      <div className="w-full bg-[#edf4fb] rounded-xl p-2.5 px-3.5 shadow-sm border border-[#d6e4f3] flex items-center justify-between gap-3 flex-none">
-        <div className="flex items-center gap-2.5 flex-1 min-w-0">
-          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center font-title-sm text-title-sm text-on-primary shrink-0 shadow-sm">
-            AS
-          </div>
-          <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-1.5">
-              <span className="font-title-sm text-title-sm text-primary font-bold">A. Sharma</span>
-              <span className="font-label-sm text-label-sm text-on-surface-variant font-normal">• MoSPI Officer</span>
-            </div>
-            <p className="font-body-md text-body-md text-on-surface truncate font-medium text-[13px]">
-              {question}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1 text-on-surface-variant shrink-0">
-          <span className="font-label-sm text-label-sm">Today, 10:24 AM</span>
-          <span className="material-symbols-outlined text-[15px]">arrow_outward</span>
-        </div>
-      </div>
-
-      {/* AI Generated Response Container - SCROLLABLE INTERNAL CONTAINER */}
       <div className="relative w-full flex-1 min-h-0 overflow-hidden bg-surface-container-lowest rounded-xl shadow-sm border border-[#e2e8f0]">
-       <div
+        <div
         ref={responseScrollerRef}
-        className="absolute inset-0 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain p-3.5 flex flex-col gap-3"
+        className="absolute inset-0 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain p-4 flex flex-col gap-4"
+        role="log"
+        aria-label="Conversation messages"
+        aria-live="polite"
         onScroll={(event) => {
           const node = event.currentTarget;
           const atLatest = node.scrollHeight - node.scrollTop - node.clientHeight < 64;
           stickToLatestRef.current = atLatest;
           setShowJumpToLatest(!atLatest && node.scrollHeight > node.clientHeight);
         }}
-       >
-        {/* AI Message Header */}
-        <div className="flex items-start gap-space-sm">
-          <div className="w-7 h-7 rounded-lg bg-primary-container text-on-primary flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
-          </div>
-          <p className="font-body-md text-body-md text-on-surface leading-relaxed text-[13px]">
-            {answer?.summary || 'The ranked projects below are loaded from the published scored dataset. Ask a follow-up question for evidence-grounded analysis.'}
-          </p>
-        </div>
-
-        {isThinking && (
-          <div className="flex items-center gap-2 self-start rounded-lg border border-[#d6e4f3] bg-[#f4f8fc] px-3 py-2 text-[12px] text-[#315777]" role="status" aria-live="polite">
-            <span className="material-symbols-outlined animate-pulse text-[16px] text-primary">auto_awesome</span>
-            <span>Thinking through the project evidence...</span>
-            <span className="flex gap-1" aria-hidden="true"><i className="w-1 h-1 rounded-full bg-current animate-bounce" /><i className="w-1 h-1 rounded-full bg-current animate-bounce [animation-delay:120ms]" /><i className="w-1 h-1 rounded-full bg-current animate-bounce [animation-delay:240ms]" /></span>
-          </div>
-        )}
-
-        {/* Data Table: High Risk Projects */}
-        <div className="flex flex-none flex-col overflow-hidden rounded-lg bg-surface-container-low shadow-sm">
-          <div className="px-3 py-2 bg-surface-container flex items-center justify-between">
-            <span className="font-title-sm text-title-sm text-primary font-bold text-[13px]">Top Transport Projects in Maharashtra by Risk Score</span>
-            <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider text-[10px]">{projects.length} Projects Identified</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-body-sm font-body-sm">
-              <thead className="bg-primary text-on-primary uppercase text-label-sm font-label-sm text-[10px]">
-                <tr>
-                  <th className="py-1.5 px-2 text-center w-8" scope="col">#</th>
-                  <th className="py-1.5 px-2" scope="col">Project Name</th>
-                  <th className="py-1.5 px-2" scope="col">Type</th>
-                  <th className="py-1.5 px-2 text-center" scope="col">Risk Score</th>
-                  <th className="py-1.5 px-2 text-center" scope="col">Risk Level</th>
-                  <th className="py-1.5 px-2" scope="col">Key Reasons</th>
-                  <th className="py-1.5 px-2 text-center" scope="col">View</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surface-container-high bg-surface-container-lowest text-[12px]">
-                {projects.map((proj) => (
-                  <tr key={proj.id} className="hover:bg-surface-container-low transition-colors">
-                    <td className="py-1.5 px-2 text-center font-bold text-on-surface-variant">{proj.id}</td>
-                    <td className="py-1.5 px-2 font-title-sm text-title-sm text-primary">{proj.name}</td>
-                    <td className="py-1.5 px-2 text-on-surface-variant">{proj.type}</td>
-                    <td className={`py-1.5 px-2 text-center font-bold ${proj.scoreColor}`}>{proj.score}</td>
-                    <td className="py-1.5 px-2 text-center">
-                      <span className={`px-2 py-0.5 rounded-full ${proj.levelBg} font-label-sm text-label-sm font-bold uppercase tracking-wider text-[9.5px]`}>
-                        {proj.level}
-                      </span>
-                    </td>
-                    <td className="py-1.5 px-2 text-on-surface leading-snug">{proj.reasons}</td>
-                    <td className="py-1.5 px-2 text-center">
-                      <button aria-label={`Inspect ${proj.name}`} className="text-primary hover:text-secondary transition-colors" type="button">
-                        <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-                      </button>
-                    </td>
-                  </tr>
+        >
+          {projects.length > 0 && (
+            <section className="self-stretch rounded-xl border border-slate-200 bg-slate-50 p-3" aria-label="Current highest-risk projects">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h2 className="text-xs font-bold text-slate-800">Highest current risk projects</h2>
+                <span className="text-[10px] text-slate-500">Live scored data</span>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {projects.slice(0, 5).map((project) => (
+                  <div key={project.id} className="flex min-w-0 items-center gap-2 rounded-lg bg-white px-2.5 py-2 text-xs">
+                    <span className="min-w-0 flex-1 truncate font-medium text-slate-800" title={project.name}>{project.name}</span>
+                    <span className="shrink-0 text-slate-500">{project.score}</span>
+                    <span className="shrink-0 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold uppercase text-rose-700">{project.level}</span>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              </div>
+            </section>
+          )}
 
-        {/* Key Insights Card */}
-        <div className="p-3 rounded-lg bg-[#FEF9EE] text-on-surface flex flex-col gap-1 shadow-sm border border-[#f5e6ca]">
-          <div className="flex items-center gap-1.5 text-secondary font-bold">
-            <span className="material-symbols-outlined text-[18px]">lightbulb</span>
-            <span className="font-title-sm text-title-sm text-[13px]">Key Insights</span>
-          </div>
-          <ul className="space-y-0.5 text-body-sm font-body-sm pl-5 list-disc text-on-surface leading-relaxed text-[12px]">
-            <li><strong className="font-semibold text-primary">3 out of 5</strong> high-risk transport projects in Maharashtra are facing significant schedule delays.</li>
-            <li>Cost escalation is a common factor, present in <strong className="font-semibold text-primary">80%</strong> of these projects.</li>
-            <li>Land acquisition and environmental clearances are the primary drivers of risk in rail and road projects.</li>
-            <li>These findings are based on the latest model outputs (<code className="font-mono text-label-sm bg-surface-container px-1 py-0.5 rounded text-[10px]">v3-final</code>) and project updates from IPMD and ministry sources.</li>
-          </ul>
+          {messages.length === 0 ? (
+            <div className="flex justify-end">
+              <article className="max-w-[88%] rounded-2xl rounded-br-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-sky-800">PRAGATI AI</p>
+                <p className="text-sm leading-relaxed text-slate-700">Ask a question about project risk, progress, cost escalation, or the evidence behind a score. Replies use the current scored portfolio.</p>
+              </article>
+            </div>
+          ) : messages.map((message) => (
+            <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-start' : 'justify-end'}`}>
+              <article className={`max-w-[88%] rounded-2xl px-4 py-3 shadow-sm ${message.role === 'user' ? 'rounded-bl-md border border-sky-200 bg-sky-50 text-slate-800' : 'rounded-br-md border border-slate-200 bg-white text-slate-800'} ${message.failed ? 'border-rose-200 bg-rose-50' : ''}`}>
+                <p className={`mb-1 text-[10px] font-bold uppercase tracking-wide ${message.role === 'user' ? 'text-sky-800' : 'text-slate-500'}`}>
+                  {message.role === 'user' ? 'You' : 'PRAGATI AI'}
+                </p>
+                {message.pending ? (
+                  <div className="flex items-center gap-2 text-sm text-slate-600" role="status" aria-live="polite">
+                    <span>Thinking through the project evidence</span>
+                    <span className="flex gap-1" aria-hidden="true"><i className="h-1.5 w-1.5 animate-bounce rounded-full bg-sky-700" /><i className="h-1.5 w-1.5 animate-bounce rounded-full bg-sky-700 [animation-delay:120ms]" /><i className="h-1.5 w-1.5 animate-bounce rounded-full bg-sky-700 [animation-delay:240ms]" /></span>
+                  </div>
+                ) : (
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
+                )}
+                {!!message.evidence?.length && (
+                  <div className="mt-3 border-t border-slate-100 pt-2">
+                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">Verified evidence</p>
+                    <ul className="space-y-1">
+                      {message.evidence.map((item, index) => (
+                        <li key={`${item.sourceField || item.claim}-${index}`} className="text-xs leading-relaxed text-slate-600">{item.claim}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </article>
+            </div>
+          ))}
         </div>
-
-        {/* Sources & Provenance Card */}
-        <div className="p-3 rounded-lg bg-surface-container-low text-on-surface flex flex-col gap-1 shadow-sm border border-[#e2e8f0]">
-          <div className="flex items-center gap-1.5 text-primary font-bold">
-            <span className="material-symbols-outlined text-[18px]">policy</span>
-            <span className="font-title-sm text-title-sm text-[13px]">Sources &amp; Provenance</span>
-          </div>
-          <ol className="space-y-0.5 text-body-sm font-body-sm pl-5 list-decimal text-on-surface-variant leading-relaxed text-[11.5px]">
-            <li><span className="font-semibold text-on-surface">Integrated Project Monitoring Dashboard (IPMD)</span> – Project status data (April 2026)</li>
-            <li><span className="font-semibold text-on-surface">MoSPI Infrastructure Database</span> – Financial and physical progress</li>
-            <li><span className="font-semibold text-on-surface">Risk Prediction Model v3-final</span> – AI/ML risk scores and SHAP analysis</li>
-            <li><span className="font-semibold text-on-surface">Ministry of Railways / MoRTH</span> – Official project updates and documents</li>
-          </ol>
-        </div>
-       </div>
        {showJumpToLatest && (
          <button
            type="button"
