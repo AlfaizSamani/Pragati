@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "framework": "vite",
+  "installCommand": "npm install --prefix .gov",
+  "buildCommand": "npm run build --prefix .gov",
+  "outputDirectory": ".gov/dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}{
+  "version": 2,
+  "framework": "vite",
+  "installCommand": "npm install --prefix .gov",
+  "buildCommand": "npm run build --prefix .gov",
+  "outputDirectory": ".gov/dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

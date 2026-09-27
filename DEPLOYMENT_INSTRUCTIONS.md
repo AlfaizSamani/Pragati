@@ -3,7 +3,7 @@
 This guide walks you through deploying the complete **PRAGATI / PAIMANA** stack:
 1. **GitHub Repository**: [https://github.com/AlfaizSamani/Pragati](https://github.com/AlfaizSamani/Pragati)
 2. **Database & Auth**: Supabase (Postgres, Row Level Security, Auth, Storage)
-3. **Frontend**: Vercel (Next.js 16)
+3. **Frontend**: Vercel (Vite + React in `.gov`)
 4. **Backend API**: Render, Railway, or Fly.io (FastAPI with frozen LightGBM bundle & flexible LLM gateway)
 
 ---
@@ -53,24 +53,18 @@ on conflict do nothing;
 
 1. Go to [https://vercel.com/new](https://vercel.com/new) and import `AlfaizSamani/Pragati`.
 2. **Project Settings**:
-   - **Framework Preset**: Next.js
-   - **Root Directory**: Select `pragttttiii-sherr-main` (or leave default `./` since root `package.json` workspaces are configured).
+   - **Framework Preset**: Vite
+   - **Root Directory**: Set to the repository root (`./`). The root `vercel.json` installs/builds `.gov` and serves `.gov/dist` with SPA route fallback.
+   - If the existing Vercel project still has `pragttttiii-sherr-main` selected as its Root Directory, change it to `./` and redeploy. Vercel project settings take precedence over repository intent.
 3. **Environment Variables**:
    Add the following variables in the Vercel dashboard:
 
 | Variable | Value / Description |
 |---|---|
-| `NEXT_PUBLIC_API_URL` | URL of your deployed Python backend (e.g. `https://pragati-api.onrender.com` or `http://localhost:8000`) |
-| `NEXT_PUBLIC_SUPABASE_URL` | `https://<your-project-id>.supabase.co` |
-| `SUPABASE_URL` | `https://<your-project-id>.supabase.co` |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Your Supabase Project `anon` key |
-| `SUPABASE_ANON_KEY` | Your Supabase Project `anon` key |
-| `PAIMANA_PROTECT_INGESTION` | `true` |
-| `PAIMANA_PROTECT_INTELLIGENCE` | `true` |
-| `LLM_PROVIDER` | `openai` (or `openai_compatible` / `local`) |
-| `LLM_API_KEY` | Your LLM provider API key |
-| `LLM_MODEL` | `gpt-4o-mini` (or your chosen model) |
-| `LLM_BASE_URL` | Provider endpoint (e.g. `https://api.openai.com/v1`) |
+| `VITE_API_URL` | URL of your deployed Python backend (e.g. `https://pragati-api.onrender.com`) |
+| `VITE_SUPABASE_URL` | `https://<your-project-id>.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | Your Supabase project anon key |
+Frontend variables belong to `.gov`. Keep service-role keys and LLM credentials on the backend host only; never expose them as `VITE_` variables.
 
 4. Click **Deploy**.
 
@@ -83,7 +77,7 @@ You can host the Python backend on **Render**, **Railway**, **Fly.io**, or any c
 ### Option A: Render
 1. Go to [Render Dashboard](https://dashboard.render.com/) -> **New Web Service**.
 2. Connect `AlfaizSamani/Pragati`.
-3. Select **Docker** (using the included [`Dockerfile`](file:///d:/Games/FuckingLosers/Dockerfile)) or **Python 3**:
+3. Select **Docker** (using the included `Dockerfile`) or **Python 3**:
    - Build command: `pip install -r requirements.txt`
    - Start command: `uvicorn api_service:app --host 0.0.0.0 --port $PORT`
 4. Set Environment Variables:
@@ -96,14 +90,14 @@ You can host the Python backend on **Render**, **Railway**, **Fly.io**, or any c
    - `LLM_PROVIDER`: `openai` (or `openai_compatible` / `local`)
    - `LLM_API_KEY`: `sk-...`
    - `LLM_MODEL`: `gpt-4o-mini`
-5. Deploy and copy your backend URL into Vercel's `NEXT_PUBLIC_API_URL`.
+5. Deploy and set the backend URL in Vercel as `VITE_API_URL`.
 
 ---
 
 ## 5. Architecture Summary
 
 ```
-Public Users ----> Vercel Next.js Frontend ----> Public Read Data / Scored Sets
+Public Users ----> Vercel Vite Frontend (.gov) ----> FastAPI / Scored Sets
                                                         |
 Officers --------> Supabase Auth / Session Cookie       |
        |                   |                            |

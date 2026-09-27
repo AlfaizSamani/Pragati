@@ -47,14 +47,14 @@ app = FastAPI(
 
 raw_origins = os.getenv(
     "PRAGATI_ALLOWED_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:3000",
+    "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:5180,http://127.0.0.1:5180,http://localhost:4173,http://127.0.0.1:4173",
 )
 allowed_origins = [o.strip().rstrip("/") for o in raw_origins.split(",") if o.strip() and o.strip() != "*"]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins or ["http://localhost:3000", "http://127.0.0.1:3000"],
-    allow_origin_regex=r"^https:\/\/.*\.vercel\.app$",
+    allow_origin_regex=r"^(https:\/\/.*\.vercel\.app|http:\/\/(localhost|127\.0\.0\.1)(:[0-9]+)?)$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -332,6 +332,34 @@ def portfolio_summary(month: str = "2026-06"):
     if 'cost_current_n' in df:
         cost = pd.to_numeric(df['cost_current_n'], errors='coerce').sum(min_count=1)
         total_cost = None if pd.isna(cost) else round(float(cost), 0)
+    sectors = []
+    for sec, grp in df.groupby(df["sector"].fillna("Other")):
+        c_cost = float(pd.to_numeric(grp.get("cost_current_n", 0), errors="coerce").sum())
+        r_scores = pd.to_numeric(grp.get("risk_score", 0), errors="coerce").fillna(0)
+        h_cnt = int((r_scores > 55).sum())
+        sectors.append({
+            "sector": str(sec),
+            "projectCount": len(grp),
+            "avgRiskScore": round(float(r_scores.mean()), 1),
+            "highRiskCount": h_cnt,
+            "totalCostCrore": round(c_cost, 1),
+        })
+    sectors.sort(key=lambda x: x["projectCount"], reverse=True)
+
+    ministries = []
+    for min_name, grp in df.groupby(df["ministry"].fillna("Other")):
+        c_cost = float(pd.to_numeric(grp.get("cost_current_n", 0), errors="coerce").sum())
+        r_scores = pd.to_numeric(grp.get("risk_score", 0), errors="coerce").fillna(0)
+        h_cnt = int((r_scores > 55).sum())
+        ministries.append({
+            "ministry": str(min_name),
+            "projectCount": len(grp),
+            "avgRiskScore": round(float(r_scores.mean()), 1),
+            "highRiskCount": h_cnt,
+            "totalCostCrore": round(c_cost, 1),
+        })
+    ministries.sort(key=lambda x: x["projectCount"], reverse=True)
+
     return dict(
         month=month,
         total_projects=len(df),
@@ -344,8 +372,8 @@ def portfolio_summary(month: str = "2026-06"):
         total_original_cost_cr=round(float(pd.to_numeric(df.get('cost_original_n'), errors='coerce').sum()), 1),
         total_expenditure_cr=round(float(pd.to_numeric(df.get('cum_exp_n'), errors='coerce').sum()), 1),
         total_cost_escalation_cr=round(float((pd.to_numeric(df.get('cost_current_n'), errors='coerce') - pd.to_numeric(df.get('cost_original_n'), errors='coerce')).clip(lower=0).sum()), 1),
-        sector_breakdown=[{"sector": item.get("sector"), "projectCount": item.get("n", 0), "avgRiskScore": round(float(item.get("avg_risk", 0)), 1), "highRiskCount": item.get("high", 0), "totalCostCrore": round(float(item.get("cost", 0)), 1)} for item in _load_master().get("sector_ranking", [])],
-        ministry_breakdown=[{"ministry": item.get("ministry"), "projectCount": item.get("n", 0), "avgRiskScore": round(float(item.get("avg_risk", 0)), 1), "highRiskCount": item.get("high", 0), "totalCostCrore": 0} for item in _load_master().get("ministry_ranking", [])],
+        sector_breakdown=sectors,
+        ministry_breakdown=ministries,
     )
 
 @app.get("/priority-queue")
@@ -402,6 +430,63 @@ def state_summary(month: str = "2026-06"):
         tiers = group["risk_tier"].astype(str).str.lower()
         groups.append({"stateCode": str(state)[:2].upper(), "stateName": str(state), "projectCount": len(group), "highRiskCount": int((tiers == "high").sum()), "criticalRiskCount": int((tiers == "critical").sum()), "avgRiskScore": round(float(group["risk_score"].mean()), 1), "totalCostCrore": float(pd.to_numeric(group["cost_current_n"], errors="coerce").sum())})
     return groups
+
+
+@app.get("/heatmap")
+def heatmap(category: str = "infrastructure-risk", month: str = "2026-06"):
+    df = _load_scored(month).copy()
+    df["risk_score"] = pd.to_numeric(df["risk_score"], errors="coerce").fillna(0)
+    df["slip"] = pd.to_numeric(df.get("schedule_slip_months_to_date", 0), errors="coerce").fillna(0)
+    df["progress"] = pd.to_numeric(df.get("phys_prog_n", 0), errors="coerce").fillna(0)
+    df["util"] = pd.to_numeric(df.get("cost_utilization_ratio", 0), errors="coerce").fillna(0) * 100
+    
+    results = []
+    for state, group in df.groupby(df["state"].fillna("Not reported")):
+        s_name = str(state).strip()
+        if not s_name or s_name.lower() in ("not reported", "pan india", "offshore"):
+            continue
+        tiers = group["risk_tier"].astype(str).str.lower()
+        if category == "infrastructure-risk":
+            val = round(float(group["risk_score"].mean()), 1)
+        elif category == "project-delays":
+            val = round(float(group["slip"].mean()), 1)
+        elif category == "budget-utilization":
+            val = round(float(group["util"].clip(0, 100).mean()), 1)
+        elif category == "safety-issues":
+            val = int((tiers.isin(["critical", "high"])).sum())
+        elif category == "active-projects":
+            val = len(group)
+        elif category == "completion-rate":
+            val = round(float(group["progress"].mean()), 1)
+        else:
+            val = round(float(group["risk_score"].mean()), 1)
+        results.append({"state": s_name, "value": val})
+    return {"category": category, "data": results}
+
+
+@app.get("/states/{state_name}")
+def state_detail(state_name: str, category: str = "infrastructure-risk", month: str = "2026-06"):
+    df = _load_scored(month).copy()
+    s_clean = state_name.strip().lower()
+    matches = df[df["state"].fillna("").astype(str).str.strip().str.lower() == s_clean]
+    if matches.empty:
+        matches = df[df["state"].fillna("").astype(str).str.contains(state_name.strip(), case=False, na=False)]
+    
+    active_count = len(matches)
+    slips = pd.to_numeric(matches.get("schedule_slip_months_to_date", 0), errors="coerce").fillna(0)
+    delayed_count = int((slips > 0).sum())
+    progs = pd.to_numeric(matches.get("phys_prog_n", 0), errors="coerce").fillna(0)
+    completion_rate = round(float(progs.mean()), 1) if active_count > 0 else 0
+    costs = pd.to_numeric(matches.get("cost_current_n", 0), errors="coerce").fillna(0)
+    portfolio_value = round(float(costs.sum()), 1)
+    
+    return {
+        "state": state_name,
+        "activeProjects": active_count,
+        "delayedProjects": delayed_count,
+        "completionRate": completion_rate,
+        "portfolioValueCr": portfolio_value,
+    }
 
 @app.get("/projects/{canonical_id}/risk")
 def project_risk(canonical_id: str, month: str = "2026-06"):
@@ -548,14 +633,5 @@ def llm_status():
         runtime = False
     return {"configured": LLM_MODEL_PATH.exists(), "runtime_available": runtime, "model": str(LLM_MODEL_PATH)}
 
-@app.get("/")
-def root():
-    return {"service": "PAIMANA Sentinel API", "status": "ok", "version": "v3-final"}
 
-@app.head("/")
-def root_head():
-    return {}
 
-@app.get("/health")
-def health():
-    return dict(status="ok", model_frozen=True, retrain_trigger="manual/scheduled only - see monthly_ingest_pipeline.retrain_model_if_scheduled")

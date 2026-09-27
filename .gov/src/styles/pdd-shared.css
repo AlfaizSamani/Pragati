@@ -1,0 +1,158 @@
+/* ============================================================
+   PRAGATI shared styles — design tokens, header, footer,
+   dropdown menus, toast. Imported by every page.
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Source+Serif+4:wght@600;700;800&display=swap');
+
+.pg-app, .pg-app *{ box-sizing: border-box; }
+
+.pg-app{
+  --navy-900:#0e2a47;
+  --navy-800:#123a5e;
+  --navy-700:#1c4a72;
+  --blue-accent:#2f6fb0;
+  --ink:#152238;
+  --ink-soft:#4b5768;
+  --muted:#7c8798;
+  --line:#e6e9ee;
+  --line-soft:#eef1f5;
+  --bg:#f5f6f8;
+  --panel:#ffffff;
+  --red:#d64545;
+  --red-bg:#fdeaea;
+  --amber:#c9820f;
+  --amber-bg:#fdf1de;
+  --green:#2f8f5b;
+  --orange-accent:#e0672f;
+  --shadow: 0 1px 2px rgba(15,32,57,.04), 0 1px 1px rgba(15,32,57,.03);
+
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:var(--bg);
+  color:var(--ink);
+  height:100%;
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+.pg-app a{ text-decoration:none; color:inherit; }
+/* :where() keeps this reset at zero added specificity so component
+   button styles (backgrounds, borders) are never outcompeted. */
+.pg-app :where(button){ font-family:inherit; cursor:pointer; border:none; background:none; }
+.pg-app :where(input){ font-family:inherit; border:none; outline:none; background:transparent; }
+.pg-app h1,.pg-app h2{ margin:0; }
+
+/* ===== Header ===== */
+.pg-header{
+  background:#fff; border-bottom:1px solid var(--line);
+  padding:0 24px; display:flex; align-items:center; justify-content:space-between;
+  height:50px; flex-shrink:0; position:relative; z-index:50;
+}
+.pg-brand{ display:flex; align-items:center; gap:11px; }
+.pg-brand-mark{
+  width:30px; height:30px;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.pg-brand-text{ display:flex; flex-direction:column; line-height:1.15; }
+.pg-brand-name{ font-family:'Source Serif 4',Georgia,serif; font-weight:800; font-size:17px; color:var(--navy-900); }
+.pg-brand-sub{ font-size:10.5px; color:var(--muted); font-weight:600; }
+.pg-brand-sep{ width:1px; height:26px; background:var(--line); margin:0 2px; }
+
+.pg-nav{ display:flex; align-items:center; gap:22px; }
+.pg-nav a{ font-size:13px; font-weight:500; color:var(--ink-soft); padding:6px 1px; position:relative; }
+.pg-nav a.active{ color:var(--navy-900); font-weight:700; }
+.pg-nav a.active::after{
+  content:""; position:absolute; left:0; right:0; bottom:0; height:2.5px;
+  background:var(--orange-accent); border-radius:2px;
+}
+
+.pg-top-right{ display:flex; align-items:center; gap:12px; }
+.pg-search-box{
+  display:flex; align-items:center; gap:8px;
+  background:var(--bg); border:1px solid var(--line); border-radius:9px;
+  padding:7px 11px; width:230px; color:var(--muted);
+}
+.pg-search-box input{ width:100%; font-size:12.5px; color:var(--ink); }
+.pg-search-box input::placeholder{ color:var(--muted); }
+.pg-icon-btn{
+  width:34px; height:34px; border-radius:9px; border:1px solid var(--line);
+  background:#fff; display:flex; align-items:center; justify-content:center;
+  position:relative; color:var(--ink-soft);
+}
+.pg-lang-btn{
+  display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:500;
+  color:var(--ink-soft); border:1px solid var(--line); border-radius:9px; padding:7px 9px;
+}
+.pg-notif-dot{
+  position:absolute; top:-5px; right:-5px; background:var(--red);
+  color:#fff; font-size:9.5px; font-weight:700; width:16px; height:16px;
+  border-radius:50%; display:flex; align-items:center; justify-content:center; border:2px solid #fff;
+}
+.pg-user-chip{ display:flex; align-items:center; gap:8px; padding:2px; }
+.pg-avatar{
+  width:34px; height:34px; border-radius:50%; background:var(--navy-800); color:#fff;
+  font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.pg-user-meta{ line-height:1.2; text-align:left; }
+.pg-user-meta .name{ font-size:12.5px; font-weight:600; color:var(--ink); }
+.pg-user-meta .role{ font-size:11px; color:var(--muted); }
+
+.pg-dropdown-wrap{ position:relative; }
+.pg-dropdown{
+  position:absolute; top:calc(100% + 8px); right:0; background:#fff;
+  border:1px solid var(--line); border-radius:10px; box-shadow:0 12px 28px rgba(15,32,57,.14);
+  z-index:100; overflow:hidden;
+}
+.pg-lang-dropdown{ min-width:150px; padding:6px; }
+.pg-lang-dropdown button, .pg-user-dropdown button{
+  display:block; width:100%; text-align:left; font-size:12.5px; font-weight:500;
+  color:var(--ink-soft); padding:8px 10px; border-radius:6px;
+}
+.pg-lang-dropdown button:hover, .pg-user-dropdown button:hover{ background:var(--bg); }
+.pg-lang-dropdown button.active{ color:var(--navy-900); font-weight:700; background:var(--line-soft); }
+.pg-user-dropdown{ min-width:160px; padding:6px; }
+.pg-notif-dropdown{ width:280px; padding:8px 0; }
+.pg-dropdown-title{ font-size:12px; font-weight:700; color:var(--ink); padding:4px 14px 8px; }
+.pg-notif-item{ padding:9px 14px; border-top:1px solid var(--line-soft); }
+.pg-notif-item p{ margin:0 0 3px; font-size:12px; color:var(--ink-soft); font-weight:500; line-height:1.4; }
+.pg-notif-item span{ font-size:10.5px; color:var(--muted); font-weight:600; }
+
+
+/* ===== Footer ===== */
+.pg-footer{
+  background:var(--navy-900); color:#c9d4e0; padding:14px 24px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+}
+.pg-footer-left{ display:flex; align-items:center; gap:11px; font-size:12px; }
+.pg-footer-left .brand-name{ color:#fff; font-size:14px; font-family:'Source Serif 4',Georgia,serif; font-weight:800; }
+.pg-footer-left .divider{ width:1px; height:14px; background:rgba(255,255,255,.2); }
+.pg-footer-mid{ display:flex; align-items:center; gap:16px; font-family:'Source Serif 4',Georgia,serif; font-style:italic; font-size:12.5px; color:#9fb0c4; }
+.pg-footer-mid .mid-divider{ width:1px; height:14px; background:rgba(255,255,255,.18); }
+.pg-footer-right{ display:flex; align-items:center; gap:14px; font-size:11.5px; color:#9fb0c4; }
+.pg-footer-right .right-divider{ width:1px; height:13px; background:rgba(255,255,255,.18); }
+.pg-footer-gov{ display:flex; align-items:center; gap:8px; margin-left:6px; }
+.pg-footer-gov .gov-text{ display:flex; flex-direction:column; line-height:1.25; }
+.pg-footer-gov .gov-line1{ font-size:11.5px; color:#dce5ee; font-weight:600; }
+.pg-footer-gov .gov-line2{ font-size:10px; color:#8fa2b8; font-weight:600; }
+.pg-footer-emblem{
+  width:26px; height:26px; display:flex; align-items:center; justify-content:center;
+}
+/* Recolors the authentic emblem asset for the dark footer via CSS
+   filter only — the SVG asset itself is never modified. */
+.national-emblem-white{ filter: brightness(0) invert(1); }
+
+/* ===== Toast ===== */
+.pg-toast{
+  position:fixed; bottom:22px; left:50%; transform:translateX(-50%);
+  background:var(--navy-900); color:#fff; font-size:13px; font-weight:600;
+  padding:11px 18px; border-radius:10px; display:flex; align-items:center; gap:9px;
+  box-shadow:0 14px 30px rgba(14,42,71,.3); z-index:300;
+  animation: pg-toast-in .25s ease;
+}
+.pg-toast svg{ color:#7ee0a6; flex-shrink:0; }
+@keyframes pg-toast-in{ from{ opacity:0; transform:translate(-50%,10px); } to{ opacity:1; transform:translate(-50%,0); } }
+
+/* Scrollbar polish */
+.pg-app *::-webkit-scrollbar{ width:7px; height:7px; }
+.pg-app *::-webkit-scrollbar-thumb{ background:#d3d9e0; border-radius:8px; }
+.pg-app *::-webkit-scrollbar-track{ background:transparent; }
