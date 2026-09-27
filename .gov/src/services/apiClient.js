@@ -1,4 +1,5 @@
 import { API_BASE } from './apiBase';
+import { getAccessToken } from './authClient';
 
 export function getApiBase() {
   return API_BASE;
@@ -37,13 +38,22 @@ export const api = {
   stateSummary: (month) => apiGet('/state-summary', { month }),
   priorityQueue: (month, topN = 50) => apiGet('/priority-queue', { month, top_n: topN }),
   intelligence: async (payload, month) => {
-
+    const accessToken = await getAccessToken();
+    const headers = { 'Content-Type': 'application/json' };
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
     const response = await fetch(`${API_BASE}/intelligence/query?month=${encodeURIComponent(month || '')}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(payload),
     });
-    if (!response.ok) throw new Error(await response.text() || `PRAGATI API request failed (${response.status}).`);
+    if (!response.ok) {
+      const body = await response.text();
+      let detail = body;
+      try { detail = JSON.parse(body).detail || body; } catch { /* preserve non-JSON error text */ }
+      const error = new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+      error.status = response.status;
+      throw error;
+    }
     return response.json();
   },
 };

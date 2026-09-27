@@ -19,6 +19,7 @@ import pandas as pd
 import tempfile, os
 import json
 import requests
+import re
 from pathlib import Path
 from typing import Optional
 from monthly_ingest_pipeline import ingest_new_month
@@ -219,12 +220,55 @@ def _project_record(row: pd.Series, month: str) -> dict:
 
 
 def _grounded_response(request: IntelligenceRequest, df: pd.DataFrame) -> dict:
+    question = request.question.strip()
+    normalized_question = question.lower()
+    out_of_scope_patterns = (
+        r"\b(?:write|generate|create|debug|review|show|give me)\b.{0,40}\b(?:code|script|program|function|python|javascript|typescript|sql|html|css)\b",
+        r"\b(?:recipe|weather|football|movie|song lyrics|poem|travel itinerary|homework|dating advice)\b",
+    )
+    platform_terms = (
+        "project", "portfolio", "risk", "delay", "schedule", "cost", "escalation", "progress",
+        "expenditure", "intervention", "alert", "ministry", "sector", "state", "evidence",
+        "benchmark", "score", "completion", "infrastructure", "stalled", "overrun",
+    )
+    is_out_of_scope = (
+        any(re.search(pattern, normalized_question) for pattern in out_of_scope_patterns)
+        or not any(term in normalized_question for term in platform_terms)
+    )
+    if is_out_of_scope:
+        return {
+            "queryId": request.id,
+            "projectId": None,
+            "summary": "Nice try, but I’m PRAGATI’s project intelligence assistant, not your all-purpose ChatGPT. Ask me about project risk, delays, cost escalation, progress, or portfolio evidence and I’ll bring the data instead of writing your Python homework.",
+            "sections": [
+                {"type": "scope", "title": "Outside my brief", "content": "I can help with the PRAGATI infrastructure portfolio: project risk, schedule delays, cost escalation, progress, alerts, interventions, and evidence."},
+            ],
+            "confidence": 1.0,
+            "reportingMonth": None,
+            "disclaimer": "This assistant only analyzes the published PRAGATI project dataset.",
+        }
+
     selected = df
     if request.projectId:
         selected = df[df["canonical_id"].astype(str) == request.projectId]
         if selected.empty:
             raise HTTPException(404, f"Project {request.projectId} was not found")
-    row = selected.sort_values("risk_score", ascending=False).iloc[0]
+    else:
+        id_match = re.search(r"\b\d{5,}\b", question)
+        if id_match:
+            id_rows = df[df["canonical_id"].astype(str) == id_match.group(0)]
+            if not id_rows.empty:
+                selected = id_rows
+
+    is_portfolio_query = bool(re.search(r"\b(projects|portfolio|top|compare|list|which ones|immediate attention|highest risk projects)\b", normalized_question))
+    selected = selected.sort_values("risk_score", ascending=False)
+    if len(selected) == len(df) and not is_portfolio_query:
+        name_matches = selected[selected["project_name"].astype(str).str.lower().apply(lambda name: len(name) > 12 and name in normalized_question)]
+        if not name_matches.empty:
+            selected = name_matches.sort_values("risk_score", ascending=False)
+
+    rows = selected.head(5) if is_portfolio_query and not request.projectId else selected.head(1)
+    row = rows.iloc[0]
     project = _project_record(row, str(row.get("report_month", "2026-07")))
     score = project["riskScore"]
     evidence = [
@@ -232,20 +276,58 @@ def _grounded_response(request: IntelligenceRequest, df: pd.DataFrame) -> dict:
         {"claim": f"Physical progress is {project['physicalProgress']:.1f}%", "sourceField": "physical_progress", "sourceValue": project["physicalProgress"]},
         {"claim": f"Sector is {project['sector']}", "sourceField": "sector", "sourceValue": project["sector"]},
     ]
-    summary = (
-        f"{project['name']} is currently assessed at {project['riskTier'].title()} risk "
-        f"with a score of {score:.1f}/100. This answer is grounded in the scored portfolio record."
-    )
-    llm_summary = generate_grounded_answer(request.question, summary)
+    if len(rows) > 1:
+        summaries = [_project_record(item, str(item.get("report_month", "2026-07"))) for _, item in rows.iterrows()]
+        summary = f"Here are the {len(summaries)} highest-risk projects in the published portfolio for {project['reportingMonth']}. The scores and indicators below come directly from the scored dataset."
+        table = {
+            "type": "table",
+            "title": "Highest-risk projects",
+            "columns": ["Project", "Sector", "Risk score", "Tier", "Cost escalation", "Schedule slip", "Progress"],
+            "rows": [[
+                item["name"], item["sector"], f"{item['riskScore']:.1f}/100", item["riskTier"].title(),
+                f"{item['costEscalationPct']:.1f}%", f"{item['scheduleSlipMonths']:.1f} mo", f"{item['physicalProgress']:.1f}%",
+            ] for item in summaries],
+        }
+        grounded_facts = summary + "\n" + "\n".join(
+            f"{item['name']}: {item['riskTier']} risk ({item['riskScore']:.1f}/100), cost escalation {item['costEscalationPct']:.1f}%, schedule slip {item['scheduleSlipMonths']:.1f} months, progress {item['physicalProgress']:.1f}%."
+            for item in summaries
+        )
+        llm_summary = generate_grounded_answer(question, grounded_facts)
+        table_section = table
+    else:
+        summary = (
+            f"{project['name']} is assessed at {project['riskTier'].title()} risk, "
+            f"scoring {score:.1f}/100 for {project['reportingMonth']}."
+        )
+        project_metrics = {
+            "type": "table",
+            "title": "Project snapshot",
+            "columns": ["Metric", "Value"],
+            "rows": [
+                ["Project", project["name"]],
+                ["Sector / ministry", f"{project['sector']} / {project['ministry']}"],
+                ["Risk", f"{project['riskTier'].title()} ({score:.1f}/100)"],
+                ["Physical progress", f"{project['physicalProgress']:.1f}%"],
+                ["Cost escalation", f"{project['costEscalationPct']:.1f}%"],
+                ["Schedule slip", f"{project['scheduleSlipMonths']:.1f} months"],
+                ["Progress stall streak", f"{project['stallStreakMonths']} months"],
+                ["Reporting month", project["reportingMonth"]],
+            ],
+        }
+        grounded_facts = summary + "\n" + "\n".join(item["claim"] for item in evidence)
+        llm_summary = generate_grounded_answer(question, grounded_facts)
+        table_section = project_metrics
+
+    response_sections = [table_section]
+    if len(rows) == 1:
+        response_sections.append({"type": "evidence", "title": "Verified evidence", "content": "These fields come from the scored project record.", "data": evidence})
+    response_sections.append({"type": "recommendation", "title": "Human review", "content": "Validate the latest field report and project context before taking intervention action."})
+
     return {
         "queryId": request.id,
         "projectId": project["id"],
         "summary": llm_summary or summary,
-        "sections": [
-            {"type": "risk_summary", "title": "Verified Risk Summary", "content": summary},
-            {"type": "evidence", "title": "Grounding Evidence", "content": "The following fields were read from the scored dataset.", "data": evidence},
-            {"type": "recommendation", "title": "Human Review Guidance", "content": "Officials should validate the latest field report and project context before taking intervention action."},
-        ],
+        "sections": response_sections,
         "confidence": 0.9,
         "reportingMonth": project["reportingMonth"],
         "disclaimer": "The ML score is decision support, not a guaranteed outcome. The assistant does not make administrative decisions or infer causality.",

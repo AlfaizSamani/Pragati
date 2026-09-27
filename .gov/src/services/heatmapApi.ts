@@ -110,13 +110,18 @@ async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
   const timer = setTimeout(() => ctrl.abort(), ms);
   try {
     return await fetch(url, { signal: ctrl.signal });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('The heatmap API timed out while waking up. Please retry in a moment.');
+    }
+    throw error;
   } finally {
     clearTimeout(timer);
   }
 }
 
 import { API_BASE } from './apiBase';
-const API_TIMEOUT_MS = 4000;
+const API_TIMEOUT_MS = 30000;
 
 /**
  * Fetch state-wise values for a category from the published backend dataset.

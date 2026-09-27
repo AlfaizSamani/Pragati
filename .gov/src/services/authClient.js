@@ -96,6 +96,17 @@ export function getSession() {
   return localGetSession();
 }
 
+export async function getAccessToken() {
+  if (!isRemote) return null;
+  if (!supabase?.auth) {
+    const { createClient } = await import('@supabase/supabase-js');
+    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw new Error(error.message);
+  return data.session?.access_token ?? null;
+}
+
 export async function signIn(email, password) {
   const normalized = String(email || "").trim().toLowerCase();
   if (!normalized || !password) throw new Error("Enter your official email and password.");

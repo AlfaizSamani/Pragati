@@ -54,15 +54,15 @@ export const ConversationSection = ({ projectRecords = [], messages = [], isThin
           )}
 
           {messages.length === 0 ? (
-            <div className="flex justify-end">
-              <article className="max-w-[88%] rounded-2xl rounded-br-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <div className="flex justify-start">
+              <article className="max-w-[88%] rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
                 <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-sky-800">PRAGATI AI</p>
                 <p className="text-sm leading-relaxed text-slate-700">Ask a question about project risk, progress, cost escalation, or the evidence behind a score. Replies use the current scored portfolio.</p>
               </article>
             </div>
           ) : messages.map((message) => (
-            <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-start' : 'justify-end'}`}>
-              <article className={`max-w-[88%] rounded-2xl px-4 py-3 shadow-sm ${message.role === 'user' ? 'rounded-bl-md border border-sky-200 bg-sky-50 text-slate-800' : 'rounded-br-md border border-slate-200 bg-white text-slate-800'} ${message.failed ? 'border-rose-200 bg-rose-50' : ''}`}>
+            <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <article className={`w-fit max-w-[92%] rounded-2xl px-4 py-3 shadow-sm ${message.role === 'user' ? 'rounded-br-md border border-sky-700 bg-sky-800 text-white' : 'rounded-bl-md border border-slate-200 bg-white text-slate-800'} ${message.failed ? 'border-rose-200 bg-rose-50' : ''}`}>
                 <p className={`mb-1 text-[10px] font-bold uppercase tracking-wide ${message.role === 'user' ? 'text-sky-800' : 'text-slate-500'}`}>
                   {message.role === 'user' ? 'You' : 'PRAGATI AI'}
                 </p>
@@ -74,14 +74,49 @@ export const ConversationSection = ({ projectRecords = [], messages = [], isThin
                 ) : (
                   <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
                 )}
-                {!!message.evidence?.length && (
-                  <div className="mt-3 border-t border-slate-100 pt-2">
-                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">Verified evidence</p>
-                    <ul className="space-y-1">
-                      {message.evidence.map((item, index) => (
-                        <li key={`${item.sourceField || item.claim}-${index}`} className="text-xs leading-relaxed text-slate-600">{item.claim}</li>
-                      ))}
-                    </ul>
+                {message.action && (
+                  <a href={message.action.href} className="mt-3 inline-flex rounded-md bg-sky-800 px-3 py-1.5 text-xs font-bold text-white hover:bg-sky-900">
+                    {message.action.label}
+                  </a>
+                )}
+                {!!message.sections?.length && (
+                  <div className="mt-3 space-y-3">
+                    {message.sections.map((section, sectionIndex) => (
+                      <section key={`${section.title || section.type}-${sectionIndex}`} className={`border-t pt-3 ${message.role === 'user' ? 'border-sky-700' : 'border-slate-100'}`}>
+                        {section.title && <h3 className="mb-2 text-xs font-bold text-slate-700">{section.title}</h3>}
+                        {section.type === 'table' && Array.isArray(section.rows) && (
+                          <div className="max-w-full overflow-x-auto rounded-lg border border-slate-200">
+                            <table className="min-w-full border-collapse text-left text-xs">
+                              <thead className="bg-slate-100 text-[10px] uppercase text-slate-600">
+                                <tr>{section.columns?.map((column) => <th key={column} scope="col" className="whitespace-nowrap px-2.5 py-2 font-bold">{column}</th>)}</tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 bg-white">
+                                {section.rows.map((row, rowIndex) => (
+                                  <tr key={rowIndex} className="align-top">
+                                    {row.map((cell, cellIndex) => <td key={cellIndex} className="max-w-64 px-2.5 py-2 text-slate-700">{cell}</td>)}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                        {section.type === 'evidence' && (
+                          <ul className="space-y-1.5">
+                            {(section.data || []).map((item, index) => (
+                              <li key={`${item.sourceField || item.claim}-${index}`} className="flex gap-2 text-xs leading-relaxed text-slate-600">
+                                <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-600" />
+                                <span>{item.claim}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {(section.type === 'recommendation' || section.type === 'scope') && section.content && (
+                          <p className={`rounded-lg px-3 py-2 text-xs leading-relaxed ${section.type === 'scope' ? 'bg-amber-50 text-amber-900' : 'bg-sky-50 text-sky-900'}`}>
+                            {section.content}
+                          </p>
+                        )}
+                      </section>
+                    ))}
                   </div>
                 )}
               </article>

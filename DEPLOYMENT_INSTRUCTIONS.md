@@ -64,7 +64,15 @@ on conflict do nothing;
 | `VITE_API_URL` | URL of your deployed Python backend (e.g. `https://pragati-api.onrender.com`) |
 | `VITE_SUPABASE_URL` | `https://<your-project-id>.supabase.co` |
 | `VITE_SUPABASE_ANON_KEY` | Your Supabase project anon key |
-Frontend variables belong to `.gov`. Keep service-role keys and LLM credentials on the backend host only; never expose them as `VITE_` variables.
+| `SUPABASE_URL` | `https://<your-project-id>.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Your Supabase Project `anon` key |
+| `SUPABASE_ANON_KEY` | Your Supabase Project `anon` key |
+| `PAIMANA_PROTECT_INGESTION` | `true` |
+| `PAIMANA_PROTECT_INTELLIGENCE` | `true` |
+| `LLM_PROVIDER` | `openai` (or `openai_compatible` / `local`) |
+| `LLM_API_KEY` | Your LLM provider API key |
+| `LLM_MODEL` | `gpt-4o-mini` (or your chosen model) |
+| `LLM_BASE_URL` | Provider endpoint (e.g. `https://api.openai.com/v1`) |
 
 4. Click **Deploy**.
 
@@ -77,7 +85,7 @@ You can host the Python backend on **Render**, **Railway**, **Fly.io**, or any c
 ### Option A: Render
 1. Go to [Render Dashboard](https://dashboard.render.com/) -> **New Web Service**.
 2. Connect `AlfaizSamani/Pragati`.
-3. Select **Docker** (using the included `Dockerfile`) or **Python 3**:
+3. Select **Docker** (using the included [`Dockerfile`](file:///d:/Games/FuckingLosers/Dockerfile)) or **Python 3**:
    - Build command: `pip install -r requirements.txt`
    - Start command: `uvicorn api_service:app --host 0.0.0.0 --port $PORT`
 4. Set Environment Variables:
@@ -97,7 +105,7 @@ You can host the Python backend on **Render**, **Railway**, **Fly.io**, or any c
 ## 5. Architecture Summary
 
 ```
-Public Users ----> Vercel Vite Frontend (.gov) ----> FastAPI / Scored Sets
+Public Users ----> Vercel Next.js Frontend ----> Public Read Data / Scored Sets
                                                         |
 Officers --------> Supabase Auth / Session Cookie       |
        |                   |                            |

@@ -42,20 +42,26 @@ export default function Intelligence() {
     ]);
 
     try {
-      const result = await api.intelligence({ id: `query-${Date.now()}`, question: normalizedQuestion, category: "general" }, import.meta.env.VITE_REPORTING_MONTH || "2026-06");
-      const evidence = (result.sections || [])
-        .filter((section) => section.type === "evidence")
-        .flatMap((section) => section.data || []);
+      const result = await api.intelligence({ id: requestId, question: normalizedQuestion, category: "general" }, import.meta.env.VITE_REPORTING_MONTH || "2026-06");
       setMessages((currentMessages) => currentMessages.map((message) => (
         message.id === assistantMessageId
-          ? { ...message, content: result.summary || "No grounded response was returned.", evidence, pending: false }
+          ? { ...message, content: result.summary || "No grounded response was returned.", sections: result.sections || [], pending: false }
           : message
       )));
     } catch (requestError) {
-      setError(requestError.message);
+      const unauthorized = requestError.status === 401;
+      if (!unauthorized) setError(requestError.message);
       setMessages((currentMessages) => currentMessages.map((message) => (
         message.id === assistantMessageId
-          ? { ...message, content: "I couldn't complete that request. Please try again.", pending: false, failed: true }
+          ? {
+              ...message,
+              content: unauthorized
+                ? "Officer sign-in is required for AI analysis. Your session may have expired."
+                : "I couldn't complete that request. Please try again.",
+              action: unauthorized ? { href: '#/signin', label: 'Sign in to continue' } : null,
+              pending: false,
+              failed: !unauthorized,
+            }
           : message
       )));
     } finally {

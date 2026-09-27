@@ -76,6 +76,9 @@ const IndiaHeatmap: React.FC<IndiaHeatmapProps> = ({
   const isControlled = controlledCategory != null;
   const [data, setData] = useState<Map<string, StateHeatmapData>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [detailError, setDetailError] = useState('');
+  const [reloadCount, setReloadCount] = useState(0);
   const [hover, setHover] = useState<HoverInfo | null>(null);
   const [detail, setDetail] = useState<StateDetail | null>(null);
   const geoJsonRef = useRef<L.GeoJSON | null>(null);
@@ -87,15 +90,20 @@ const IndiaHeatmap: React.FC<IndiaHeatmapProps> = ({
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setLoadError('');
     fetchHeatmap(categoryId).then((res) => {
       if (cancelled) return;
       const m = new Map<string, StateHeatmapData>();
       res.data.forEach((d) => m.set(normalizeStateName(d.state), d));
       setData(m);
       setLoading(false);
+    }).catch((error: unknown) => {
+      if (cancelled) return;
+      setLoadError(error instanceof Error ? error.message : 'Unable to load the heatmap.');
+      setLoading(false);
     });
     return () => { cancelled = true; };
-  }, [categoryId]);
+  }, [categoryId, reloadCount]);
 
   /* Shared style function: reads current data via closure-safe ref. */
   const dataRef = useRef(data);
@@ -150,9 +158,14 @@ const IndiaHeatmap: React.FC<IndiaHeatmapProps> = ({
       },
       click: async () => {
         setDetail(null);
-        const det = await getStateDetails(name, categoryRef.current.id);
-        setDetail(det);
-        onStateSelect?.(det);
+        setDetailError('');
+        try {
+          const det = await getStateDetails(name, categoryRef.current.id);
+          setDetail(det);
+          onStateSelect?.(det);
+        } catch (error) {
+          setDetailError(error instanceof Error ? error.message : 'Unable to load state details.');
+        }
       },
     });
   };
@@ -202,6 +215,19 @@ const IndiaHeatmap: React.FC<IndiaHeatmapProps> = ({
             background: 'rgba(248,250,252,0.72)', zIndex: 500, fontSize: 12, color: '#64748B',
           }}>
             Loading heatmap…
+          </div>
+        )}
+
+        {loadError && !loading && (
+          <div role="alert" style={{ position: 'absolute', inset: 0, zIndex: 700, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24, background: 'rgba(248,250,252,0.94)', color: '#475569', textAlign: 'center', fontSize: 12 }}>
+            <span>{loadError}</span>
+            <button type="button" onClick={() => setReloadCount((count) => count + 1)} style={{ border: 0, borderRadius: 6, background: '#0B2545', color: '#fff', padding: '7px 12px', fontWeight: 700 }}>Retry heatmap</button>
+          </div>
+        )}
+
+        {detailError && (
+          <div role="alert" style={{ position: 'absolute', right: 10, bottom: 10, zIndex: 900, maxWidth: 280, border: '1px solid #FECACA', borderRadius: 8, background: '#FEF2F2', color: '#991B1B', padding: '8px 10px', fontSize: 11 }}>
+            {detailError}
           </div>
         )}
 
