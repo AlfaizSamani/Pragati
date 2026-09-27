@@ -1,60 +1,23 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
-export const ConversationSection = ({ projectRecords = [], question, answer, onSubmit }) => {
+export const ConversationSection = ({ projectRecords = [], question, answer, isThinking = false, onSubmit }) => {
   const [draft, setDraft] = useState(question || '');
-  const legacyProjects = [
-    {
-      id: 1,
-      name: 'Mumbai-Ahmedabad High Speed Rail (MAHSR)',
-      type: 'Railways',
-      score: '87%',
-      level: 'High',
-      levelBg: 'bg-error-container text-on-error-container',
-      scoreColor: 'text-error',
-      reasons: 'Schedule delay, land acquisition issues, cost escalation'
-    },
-    {
-      id: 2,
-      name: 'Mumbai Trans Harbour Link (MTHL) Extension',
-      type: 'Road Transport',
-      score: '81%',
-      level: 'High',
-      levelBg: 'bg-error-container text-on-error-container',
-      scoreColor: 'text-error',
-      reasons: 'Cost overrun, contractor mobilization delays'
-    },
-    {
-      id: 3,
-      name: 'Pune Metro Phase II',
-      type: 'Urban Transport',
-      score: '76%',
-      level: 'High',
-      levelBg: 'bg-error-container text-on-error-container',
-      scoreColor: 'text-error',
-      reasons: 'Delayed clearances, utility shifting, rising costs'
-    },
-    {
-      id: 4,
-      name: 'Nagpur Metro Phase II',
-      type: 'Urban Transport',
-      score: '62%',
-      level: 'Medium',
-      levelBg: 'bg-secondary-fixed text-on-secondary-fixed',
-      scoreColor: 'text-secondary',
-      reasons: 'Land acquisition, slower than expected progress'
-    },
-    {
-      id: 5,
-      name: 'Samruddhi Mahamarg (Phase II)',
-      type: 'Road Transport',
-      score: '58%',
-      level: 'Medium',
-      levelBg: 'bg-secondary-fixed text-on-secondary-fixed',
-      scoreColor: 'text-secondary',
-      reasons: 'Environmental clearances, contractor issues'
-    }
-  ];
   const projects = projectRecords;
+  const responseScrollerRef = useRef(null);
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
+  const stickToLatestRef = useRef(true);
+
+  const scrollToLatest = () => {
+    const scroller = responseScrollerRef.current;
+    if (scroller) scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
+    stickToLatestRef.current = true;
+    setShowJumpToLatest(false);
+  };
+
+  useEffect(() => {
+    const scroller = responseScrollerRef.current;
+    if (scroller && stickToLatestRef.current) scroller.scrollTop = scroller.scrollHeight;
+  }, [question, answer, isThinking]);
 
   return (
     <div className="w-full min-w-0 h-full flex flex-col min-h-0 gap-2 overflow-hidden">
@@ -81,7 +44,17 @@ export const ConversationSection = ({ projectRecords = [], question, answer, onS
       </div>
 
       {/* AI Generated Response Container - SCROLLABLE INTERNAL CONTAINER */}
-      <div className="w-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain bg-surface-container-lowest rounded-xl p-3.5 shadow-sm flex flex-col gap-3 border border-[#e2e8f0]">
+      <div className="relative w-full flex-1 min-h-0 overflow-hidden bg-surface-container-lowest rounded-xl shadow-sm border border-[#e2e8f0]">
+       <div
+        ref={responseScrollerRef}
+        className="absolute inset-0 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain p-3.5 flex flex-col gap-3"
+        onScroll={(event) => {
+          const node = event.currentTarget;
+          const atLatest = node.scrollHeight - node.scrollTop - node.clientHeight < 64;
+          stickToLatestRef.current = atLatest;
+          setShowJumpToLatest(!atLatest && node.scrollHeight > node.clientHeight);
+        }}
+       >
         {/* AI Message Header */}
         <div className="flex items-start gap-space-sm">
           <div className="w-7 h-7 rounded-lg bg-primary-container text-on-primary flex items-center justify-center shrink-0">
@@ -92,8 +65,16 @@ export const ConversationSection = ({ projectRecords = [], question, answer, onS
           </p>
         </div>
 
+        {isThinking && (
+          <div className="flex items-center gap-2 self-start rounded-lg border border-[#d6e4f3] bg-[#f4f8fc] px-3 py-2 text-[12px] text-[#315777]" role="status" aria-live="polite">
+            <span className="material-symbols-outlined animate-pulse text-[16px] text-primary">auto_awesome</span>
+            <span>Thinking through the project evidence...</span>
+            <span className="flex gap-1" aria-hidden="true"><i className="w-1 h-1 rounded-full bg-current animate-bounce" /><i className="w-1 h-1 rounded-full bg-current animate-bounce [animation-delay:120ms]" /><i className="w-1 h-1 rounded-full bg-current animate-bounce [animation-delay:240ms]" /></span>
+          </div>
+        )}
+
         {/* Data Table: High Risk Projects */}
-        <div className="flex flex-col overflow-hidden rounded-lg bg-surface-container-low shadow-sm">
+        <div className="flex flex-none flex-col overflow-hidden rounded-lg bg-surface-container-low shadow-sm">
           <div className="px-3 py-2 bg-surface-container flex items-center justify-between">
             <span className="font-title-sm text-title-sm text-primary font-bold text-[13px]">Top Transport Projects in Maharashtra by Risk Score</span>
             <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider text-[10px]">{projects.length} Projects Identified</span>
@@ -163,16 +144,28 @@ export const ConversationSection = ({ projectRecords = [], question, answer, onS
             <li><span className="font-semibold text-on-surface">Ministry of Railways / MoRTH</span> – Official project updates and documents</li>
           </ol>
         </div>
+       </div>
+       {showJumpToLatest && (
+         <button
+           type="button"
+           onClick={scrollToLatest}
+           aria-label="Jump to latest response"
+           title="Jump to latest response"
+           className="absolute bottom-3 right-3 z-10 grid h-9 w-9 place-items-center rounded-full border border-[#d6e4f3] bg-white text-primary shadow-md transition hover:-translate-y-0.5 hover:bg-[#f4f8fc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+         >
+           <span className="material-symbols-outlined text-[20px]">south</span>
+         </button>
+       )}
       </div>
 
       {/* Follow-up Prompt Bar - PINNED AT BOTTOM */}
       <div className="w-full flex flex-col gap-1 flex-none">
-        <form className="relative flex items-center bg-surface-container-lowest rounded-xl shadow-sm px-2.5 py-1 border border-[#d6e4f3]" onSubmit={(e) => e.preventDefault()}>
+        <form className="relative flex items-center bg-surface-container-lowest rounded-xl shadow-sm px-2.5 py-1 border border-[#d6e4f3]" onSubmit={(event) => { event.preventDefault(); if (!isThinking && draft.trim()) { onSubmit?.(draft.trim()); setDraft(''); } }}>
           <button aria-label="Attach context documents" className="p-1 text-on-surface-variant hover:text-primary transition-colors" type="button">
             <span className="material-symbols-outlined text-[18px]">attach_file</span>
           </button>
           <input value={draft} onChange={(event) => setDraft(event.target.value)} className="flex-1 px-2 py-1 bg-transparent text-body-sm font-body-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none text-[12.5px]" placeholder="Ask a follow-up question..." type="text" />
-          <button aria-label="Send query" onClick={() => onSubmit?.(draft)} className="w-7 h-7 rounded-lg bg-primary hover:bg-primary-container text-on-primary flex items-center justify-center transition-colors shadow-sm" type="submit">
+          <button aria-label="Send query" disabled={isThinking || !draft.trim()} className="w-7 h-7 rounded-lg bg-primary hover:bg-primary-container text-on-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors shadow-sm" type="submit">
             <span className="material-symbols-outlined text-[16px]">send</span>
           </button>
         </form>

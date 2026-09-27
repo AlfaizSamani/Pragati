@@ -14,6 +14,7 @@ export default function Intelligence() {
   const [projects, setProjects] = useState([]);
   const [question, setQuestion] = useState("Which projects need immediate attention?");
   const [answer, setAnswer] = useState(null);
+  const [isThinking, setIsThinking] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -30,12 +31,18 @@ export default function Intelligence() {
   }, []);
 
   async function submitQuestion(nextQuestion = question) {
+    const normalizedQuestion = nextQuestion.trim();
+    if (!normalizedQuestion || isThinking) return;
     setQuestion(nextQuestion);
+    setError("");
+    setIsThinking(true);
     try {
-      const result = await api.intelligence({ id: `query-${Date.now()}`, question: nextQuestion, category: "general" }, import.meta.env.VITE_REPORTING_MONTH || "2026-06");
+      const result = await api.intelligence({ id: `query-${Date.now()}`, question: normalizedQuestion, category: "general" }, import.meta.env.VITE_REPORTING_MONTH || "2026-06");
       setAnswer(result);
     } catch (requestError) {
       setError(requestError.message);
+    } finally {
+      setIsThinking(false);
     }
   }
 
@@ -50,7 +57,7 @@ export default function Intelligence() {
               <div className="h-full min-h-0 overflow-hidden pr-1">
                 <TryTheseQuestions onSelect={submitQuestion} />
               </div>
-              <ConversationSection projectRecords={projects} question={question} answer={answer} onSubmit={submitQuestion} />
+              <ConversationSection projectRecords={projects} question={question} answer={answer} isThinking={isThinking} onSubmit={submitQuestion} />
               <div className="h-full min-h-0 overflow-hidden pr-1">
                 <RiskAnalyticsSection />
               </div>
