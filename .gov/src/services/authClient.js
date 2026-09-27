@@ -16,16 +16,24 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 export const isRemote = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
 let supabase = null;
-if (isRemote) {
-  // Dynamic import keeps the bundle lean when Supabase isn't configured.
-  import("@supabase/supabase-js")
-    .then(({ createClient }) => {
-      supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      listeners.forEach((fn) => fn(getSession()));
-    })
-    .catch(() => {
-      console.warn("Supabase client failed to initialize; using local preview auth.");
-    });
+let supabaseInitialization;
+
+async function getSupabaseClient() {
+  if (!isRemote) return null;
+  if (supabase) return supabase;
+  if (!supabaseInitialization) {
+    supabaseInitialization = import("@supabase/supabase-js")
+      .then(({ createClient }) => {
+        supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        listeners.forEach((fn) => fn(getSession()));
+        return supabase;
+      })
+      .catch((error) => {
+        supabaseInitialization = null;
+        throw new Error(`Supabase client failed to initialize: ${error.message}`);
+      });
+  }
+  return supabaseInitialization;
 }
 
 /* ---------------- local preview mode ---------------- */
@@ -70,14 +78,26 @@ function emit(session) {
 
 export function subscribe(fn) {
   listeners.add(fn);
-  if (isRemote && supabase?.auth) {
-    const { data } = supabase.auth.onAuthStateChange((_event, s) => fn(toSession(s)));
-    return () => {
-      listeners.delete(fn);
-      data?.subscription?.unsubscribe?.();
-    };
+  let active = true;
+  let subscription;
+
+  if (isRemote) {
+    getSupabaseClient()
+      .then(async (client) => {
+        if (!active) return;
+        const { data } = client.auth.onAuthStateChange((_event, session) => fn(toSession(session)));
+        subscription = data?.subscription;
+        const { data: sessionData } = await client.auth.getSession();
+        if (active) fn(toSession(sessionData.session));
+      })
+      .catch((error) => console.error(error));
   }
-  return () => listeners.delete(fn);
+
+  return () => {
+    active = false;
+    listeners.delete(fn);
+    subscription?.unsubscribe?.();
+  };
 }
 
 function toSession(s) {
@@ -98,11 +118,8 @@ export function getSession() {
 
 export async function getAccessToken() {
   if (!isRemote) return null;
-  if (!supabase?.auth) {
-    const { createClient } = await import('@supabase/supabase-js');
-    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  }
-  const { data, error } = await supabase.auth.getSession();
+  const client = await getSupabaseClient();
+  const { data, error } = await client.auth.getSession();
   if (error) throw new Error(error.message);
   return data.session?.access_token ?? null;
 }
@@ -111,8 +128,9 @@ export async function signIn(email, password) {
   const normalized = String(email || "").trim().toLowerCase();
   if (!normalized || !password) throw new Error("Enter your official email and password.");
 
-  if (isRemote && supabase?.auth) {
-    const { data, error } = await supabase.auth.signInWithPassword({ email: normalized, password });
+  const client = await getSupabaseClient();
+  if (client?.auth) {
+    const { data, error } = await client.auth.signInWithPassword({ email: normalized, password });
     if (error) throw new Error(error.message);
     const session = toSession(data.session);
     emit(session);
@@ -155,18 +173,49 @@ export async function signUpRequestAccess(payload) {
   const email = String(payload.email || "").trim().toLowerCase();
   if (!email) throw new Error("Official email is required.");
 
-  if (isRemote && supabase?.auth) {
-    const { error } = await supabase.auth.signUp({
+  const client = await getSupabaseClient();
+  if (client?.auth) {
+    const { data, error } = await client.auth.signUp({
       email,
       password: payload.password,
-      options: { data: { full_name: payload.fullName, role: payload.role, organization: payload.organization } },
+      options: {
+        data: {
+          access_request_id: payload.requestId,
+          full_name: payload.fullName,
+          role: payload.role,
+          requested_role: payload.role,
+          organization: payload.organization,
+          phone: payload.phone,
+          designation: payload.designation,
+          state_ut: payload.stateUt,
+          purpose: payload.purpose,
+          document_name: payload.document?.name || "",
+        },
+      },
     });
     if (error) throw new Error(error.message);
-    // Store the extended request for the admin review flow.
-    const requests = readJson(REQUESTS_KEY, []);
-    requests.push({ ...payload, email, submittedAt: new Date().toISOString(), status: "pending" });
-    writeJson(REQUESTS_KEY, requests);
-    return { needsEmailConfirm: true };
+
+    if (payload.document) {
+      const safeName = payload.document.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${payload.requestId}/${safeName}`;
+      const extension = safeName.split(".").pop()?.toLowerCase();
+      const contentType = payload.document.type || ({ pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png" }[extension] || "application/octet-stream");
+      const { error: uploadError } = await client.storage
+        .from("access-request-documents")
+        .upload(path, payload.document, {
+          contentType,
+          upsert: false,
+        });
+      if (uploadError) {
+        const uploadFailure = new Error(`Your account was created, but the supporting document could not be uploaded: ${uploadError.message}`);
+        uploadFailure.accountCreated = true;
+        throw uploadFailure;
+      }
+    }
+
+    return {
+      needsEmailConfirm: !data.session,
+    };
   }
 
   const users = readJson(USERS_KEY, []);
@@ -186,8 +235,9 @@ export async function signUpRequestAccess(payload) {
 }
 
 export async function signOutUser() {
-  if (isRemote && supabase?.auth) {
-    await supabase.auth.signOut();
+  const client = await getSupabaseClient();
+  if (client?.auth) {
+    await client.auth.signOut();
   }
   writeJson(LOCAL_KEY, null);
   emit(null);

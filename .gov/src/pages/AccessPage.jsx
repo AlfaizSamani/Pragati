@@ -8,6 +8,7 @@ import ashokaEmblemUrl from "../assets/ashoka-emblem.svg";
 import {
   signIn, signUpRequestAccess, subscribe, getSession, signOutUser, isRemote,
 } from "../services/authClient";
+import ReferenceAccessApp from "./reference-access/ReferenceAccessApp.jsx";
 
 const NAV = [
   { label: "About", href: "#/" },
@@ -56,7 +57,7 @@ function SessionBadge({ session }) {
 }
 
 export default function AccessPage() {
-  const [mode, setMode] = useState("signin"); // signin | request
+  const [mode, setMode] = useState(() => window.location.hash.startsWith("#/request-access") ? "request" : "signin");
   const [session, setSession] = useState(getSession());
   const [toast, setToast] = useState("");
   const [notice, setNotice] = useState("");
@@ -76,6 +77,11 @@ export default function AccessPage() {
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e?.target?.value ?? e }));
 
   useEffect(() => subscribe(setSession), []);
+  useEffect(() => {
+    const updateMode = () => setMode(window.location.hash.startsWith("#/request-access") ? "request" : "signin");
+    window.addEventListener("hashchange", updateMode);
+    return () => window.removeEventListener("hashchange", updateMode);
+  }, []);
 
   const notify = (m) => {
     setToast(m);
@@ -173,6 +179,7 @@ export default function AccessPage() {
 
   const stepper = useMemo(() => ["Basic Information", "Role & Organization", "Justification", "Review & Submit"], []);
 
+  if (mode === "request") return <ReferenceAccessApp />;
   if (session) return <SessionBadge session={session} />;
 
   return (
