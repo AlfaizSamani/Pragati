@@ -1,0 +1,114 @@
+name: Build and deploy PRAGATI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy.yml'
+      - '.gov/**'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'requirements.txt'
+      - 'api_service.py'
+      - 'llm_service.py'
+      - 'monthly_ingest_pipeline.py'
+      - 'parse_reports.py'
+      - 'build_features.py'
+      - 'model_and_calibrator_FINAL.joblib'
+      - 'stage10_priority_queue.csv'
+      - 'dashboard_master.json'
+      - 'stage6_shap_final.csv'
+      - 'crosswalk_projectcode_to_legacyocms.csv'
+      - 'panel_long_13months.csv'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: pragati-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend-build:
+    name: Build Vite frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install frontend dependencies
+        working-directory: .gov
+        run: npm install --no-audit --no-fund
+
+      - name: Build frontend
+        working-directory: .gov
+        run: npm run build
+
+      - name: Deploy frontend to Vercel production
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
+            echo "::notice::Vercel deployment skipped; configure VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_PROJECT_ID in repository settings."
+            exit 0
+          fi
+          npm install --global vercel@latest
+          vercel link --yes --scope "$VERCEL_ORG_ID" --project "$VERCEL_PROJECT_ID" --token "$VERCEL_TOKEN"
+          vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
+          vercel build --prod --token "$VERCEL_TOKEN"
+          vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN"
+
+  api-image:
+    name: Build and publish API container
+    runs-on: ubuntu-latest
+    env:
+      CONTAINER_DEPLOY_HOOK: ${{ secrets.CONTAINER_DEPLOY_HOOK }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image tags
+        id: metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/alfaizsamani/pragati-api
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-
+
+      - name: Build and publish image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Trigger container host deployment
+        if: ${{ env.CONTAINER_DEPLOY_HOOK != '' }}
+        env:
+          DEPLOY_HOOK_URL: ${{ env.CONTAINER_DEPLOY_HOOK }}
+        run: curl --fail --silent --show-error --request POST "$DEPLOY_HOOK_URL"

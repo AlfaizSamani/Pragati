@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend python code, models, and serving data
 COPY api_service.py llm_service.py monthly_ingest_pipeline.py parse_reports.py build_features.py ./
 COPY model_and_calibrator_FINAL.joblib ./
-COPY stage10_priority_queue.csv dashboard_master.json stage6_shap_final.csv crosswalk_projectcode_to_legacyocms.csv ./
+COPY stage10_priority_queue.csv dashboard_master.json stage6_shap_final.csv crosswalk_projectcode_to_legacyocms.csv panel_long_13months.csv ./
 
 ENV PORT=8000
 EXPOSE 8000
