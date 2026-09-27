@@ -1,4 +1,4 @@
-const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+import { API_BASE } from './apiBase';
 
 export function getApiBase() {
   return API_BASE;

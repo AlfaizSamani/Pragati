@@ -115,7 +115,7 @@ async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
   }
 }
 
-const API_BASE = ((import.meta as any)?.env?.VITE_API_URL ?? (import.meta as any)?.env?.VITE_HEATMAP_API ?? '').replace(/\/$/, '');
+import { API_BASE } from './apiBase';
 const API_TIMEOUT_MS = 4000;
 
 /**

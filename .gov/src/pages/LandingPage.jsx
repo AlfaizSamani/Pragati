@@ -26,36 +26,34 @@ import {
 // Authentic State Emblem of India — static public-domain asset, shared
 // across all four PRAGATI pages for brand consistency.
 import ashokaEmblemUrl from '../assets/ashoka-emblem.svg';
-import heroSeaLinkUrl from '../assets/hero-bridge.jpg';
-import heroTrainUrl from '../assets/train-hero.jpg';
-import heroDamUrl from '../assets/hero-dam-panorama.png';
-import heroHighwayUrl from '../assets/hero-highway.png';
 import { api } from '../services/apiClient';
+
+const landingHeroAsset = (filename) => `${import.meta.env.BASE_URL}assets/${filename}`;
 
 const HERO_SLIDES = [
   {
     id: 1,
     title: 'Bandra-Worli Sea Link',
     location: 'Mumbai, Maharashtra',
-    image: heroSeaLinkUrl,
+    image: landingHeroAsset('hero-bandra-worli.png'),
   },
   {
     id: 2,
-    title: 'Vande Bharat Transit',
-    location: 'Inter-City Semi-High Speed Rail',
-    image: heroTrainUrl,
+    title: 'Sardar Sarovar Dam',
+    location: 'Narmada River, Gujarat',
+    image: landingHeroAsset('hero-dam-panorama.png'),
   },
   {
     id: 3,
-    title: 'Sardar Sarovar Dam',
-    location: 'Narmada River, Gujarat',
-    image: heroDamUrl,
+    title: 'New Delhi Infrastructure',
+    location: 'New Delhi, India',
+    image: landingHeroAsset('hero-delhi-sunset.png'),
   },
   {
     id: 4,
-    title: 'National Infrastructure Mission',
-    location: 'India-wide Development Portfolio',
-    image: heroHighwayUrl,
+    title: 'Vande Bharat Transit',
+    location: 'Inter-City Semi-High Speed Rail',
+    image: landingHeroAsset('hero-vande-bharat.png'),
   }
 ];
 
